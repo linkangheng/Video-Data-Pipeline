@@ -183,15 +183,7 @@ def job(num_jobs=64, machine_id=0, total_machine=1):
     end_time = time.time()
     print(f"The precessing procedure for {len(data)} files ran for {(end_time - start_time)} seconds")
 
-if __name__ == "__main__":
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--machine_id", type=int, default=0)
-    # parser.add_argument("--total_machine", type=int, default=1)
-    # parser.add_argument("--workers", type=int, default=1) # 64
-    # args = parser.parse_args()
-
-    # job(num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine)
-    
+def debug():
     save_path = "./debug/"
     tar_name = "test"
     meta_data = json.load(open('/data/webvid/debug/data/rmwm_webvid_QA_train_clean_train.json', 'r'))
@@ -206,3 +198,14 @@ if __name__ == "__main__":
     samples = data[:10]
     
     process_tars(save_path, tar_name, samples)
+    
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--machine_id", type=int, default=0)
+    parser.add_argument("--total_machine", type=int, default=1)
+    parser.add_argument("--workers", type=int, default=1) # 64
+    args = parser.parse_args()
+
+    job(num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine)
+    
+    
