@@ -134,18 +134,43 @@ def process_tars(save_path, tar_name, samples):
         tar_writer.close()
         print(f"[{datetime.datetime.now()}] complete to write samples to tar file {tar_name}, size: {size}, nsamples: {total}")
 
-
-def job(num_jobs=64, machine_id=0, total_machine=1):
+def load_webvid():
     meta_data = json.load(open('/data/webvid/debug/data/rmwm_webvid_QA_train_clean_train.json', 'r')) 
+    print("Loaded webvid json")
     data = []
-    
-    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image']),desc='Converting meta dict file to required format...'):
+    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image']),desc='Converting the Webvid format to required format...'):
         video_path = meta_data['image'][str(key)]
         caption = meta_data['value'][str(key)]
         data.append({
             'video_path': video_path,
             'value': caption
         })
+    
+    return data
+
+def load_hd3m():
+    meta_data = json.load(open('/data/webvid/debug/data/path_to_output_hd-3m3.json', 'r')) 
+    print("Loaded hd3m json")
+    data = []
+    for i in tqdm(meta_data, total=len(meta_data), desc='Converting hd3m format to required format...'):
+        data.append({
+            'video_path': i['video'],
+            'value': i['caption']
+        })
+    return data
+
+
+
+def job(dataset, num_jobs=64, machine_id=0, total_machine=1,):
+    
+    if dataset == 'webvid':
+        data = load_webvid()
+    elif dataset == 'hd3m':
+        data = load_hd3m()
+    else:
+        raise ValueError(f"dataset {dataset} is not supported")
+    
+    
     
     # random.shuffle(data)
 
@@ -206,9 +231,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--machine_id", type=int, default=0)
     parser.add_argument("--total_machine", type=int, default=1)
+    parser.add_argument("--dataset", type=str, default="webvid",help="webvid, hd3m, etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
     args = parser.parse_args()
 
-    job(num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine)
+    job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
     
     
