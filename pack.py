@@ -37,6 +37,8 @@ black_words = [
     '.com', '.jpg', '.pdf', '.jpeg', 'png', 'tiff', 'svg',
 ]
 tar_size = 500
+# 设置环境变量
+os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
 
 
 def load_image(image_path):
@@ -160,7 +162,7 @@ def job(num_jobs=64, machine_id=0, total_machine=1):
     start_time = time.time()
     # pattern = re.compile(r'[^\u4e00-\u9fa5^a-z^A-Z^0-9^.^\-^+^*^/^$^,^，^。^!^！^?^？^:^：^;^；^\(^（^\)^）^【^】^《^》^…^ ]')
     # pattern = r"\b(?:https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+(?:[/?].*)?"
-    save_path = f"/data/webvid/debug/"
+    save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/webvid"
     Path(save_path).mkdir(parents=True, exist_ok=True)
 
     per_job_size = truncated_length // num_jobs
@@ -200,10 +202,11 @@ def debug():
     process_tars(save_path, tar_name, samples)
     
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--machine_id", type=int, default=0)
     parser.add_argument("--total_machine", type=int, default=1)
-    parser.add_argument("--workers", type=int, default=1) # 64
+    parser.add_argument("--workers", type=int, default=64) # 64
     args = parser.parse_args()
 
     job(num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine)
