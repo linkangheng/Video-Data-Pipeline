@@ -165,12 +165,12 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,):
     
     if dataset == 'webvid':
         data = load_webvid()
+        save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/webvid"
     elif dataset == 'hd3m':
         data = load_hd3m()
+        save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/hd3m"
     else:
         raise ValueError(f"dataset {dataset} is not supported")
-    
-    
     
     # random.shuffle(data)
 
@@ -187,7 +187,7 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,):
     start_time = time.time()
     # pattern = re.compile(r'[^\u4e00-\u9fa5^a-z^A-Z^0-9^.^\-^+^*^/^$^,^，^。^!^！^?^？^:^：^;^；^\(^（^\)^）^【^】^《^》^…^ ]')
     # pattern = r"\b(?:https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+(?:[/?].*)?"
-    save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/webvid"
+    
     Path(save_path).mkdir(parents=True, exist_ok=True)
 
     per_job_size = truncated_length // num_jobs
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--machine_id", type=int, default=0)
     parser.add_argument("--total_machine", type=int, default=1)
-    parser.add_argument("--dataset", type=str, default="webvid",help="webvid, hd3m, etc.")
+    parser.add_argument("--dataset", type=str, default="hd3m",help="webvid, hd3m, etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
     args = parser.parse_args()
 
