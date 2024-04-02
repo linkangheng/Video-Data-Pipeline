@@ -49,6 +49,11 @@ def load_image(image_path):
         
     return image
 
+def video_sample(file_idx, video_path):
+    # TODO: 根据给定的视频路径，返回视频的关键帧的PIL列表
+    image_name_list = []
+    
+    return image_name_list
 
 def process_tars(save_path, tar_name, samples):
     print(f"[{datetime.datetime.now()}] start to package {len(samples)} files to tar file {tar_name}")
@@ -70,6 +75,11 @@ def process_tars(save_path, tar_name, samples):
             assert isinstance(info['image'], list)
 
             valid_count = 0
+            
+            # ==== TODO: 构建info ====
+            # ==== End ====
+            
+            # ==== TODO: 将这一部分的逻辑改为根据视频路径返回image_dict_list, image_name_list的一个函数 ====
             for index, img_path in enumerate(info['image']):
                 try:
                     img = load_image(img_path.replace('kanelin/interlink7m/samples', 'vision-language-data/interlink7m'))
@@ -87,6 +97,7 @@ def process_tars(save_path, tar_name, samples):
                         jpg=img,
                     )
                 )
+            # ==== End ====
             
             if valid_count != info['conversations'][0]['value'].count('<image>'):
                 print('skip sample: ' + str(info))
@@ -118,10 +129,19 @@ def process_tars(save_path, tar_name, samples):
 
 
 def job(num_jobs=64, machine_id=0, total_machine=1):
-    data = json.load(open('/data/webvid/debug/interlink_6M_v1.json', 'r')) 
-    # ipdb.set_trace()
-    random.shuffle(data)
-    import ipdb;ipdb.set_trace()
+    meta_data = json.load(open('/data/webvid/debug/data/rmwm_webvid_QA_train_clean_train.json', 'r')) 
+    data = []
+    
+    print(f'Converting meta dict file to required format...')
+    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image'])):
+        video_path = meta_data['image'][str(key)]
+        caption = meta_data['value'][str(key)]
+        data.append({
+            'video_path': video_path,
+            'value': caption
+        })
+    
+    # random.shuffle(data)
 
     print(f'{len(data)} samples in total')
     data = data[machine_id::total_machine]
