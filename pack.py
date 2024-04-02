@@ -30,7 +30,7 @@ from joblib import Parallel, delayed
 # from langdetect import detect
 # from ftlangdetect import detect
 # import cld3
-
+from video_sample import extract_frames, get_cache_video
 
 black_words = [
     'image unavailable',
@@ -49,11 +49,26 @@ def load_image(image_path):
         
     return image
 
-def video_sample(file_idx, video_path):
+def sampler(file_idx, video_path):
     # TODO: 根据给定的视频路径，返回视频的关键帧的PIL列表
     image_name_list = []
+    image_dict_list = []
     
-    return image_name_list
+    video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
+    video_path = os.path.join(video_prefix, video_path)
+    
+    cache_path = get_cache_video(video_path)
+    images = extract_frames(cache_path)
+    os.remove(cache_path)
+
+    for index, img in enumerate(images):
+        image_name_list.append(f"{file_idx:09d}-{index}")
+        image_dict_list.append(dict(
+            __key__=f"{file_idx:09d}-{index}",
+            jpg=img,
+        ))
+    
+    return image_name_list, image_dict_list
 
 def process_tars(save_path, tar_name, samples):
     print(f"[{datetime.datetime.now()}] start to package {len(samples)} files to tar file {tar_name}")
@@ -69,49 +84,39 @@ def process_tars(save_path, tar_name, samples):
             image_dict_list = []
             image_name_list = []
 
-            if isinstance(info['image'], str):
-                info['image'] = [info['image']]
-
-            assert isinstance(info['image'], list)
+            assert isinstance(info['video_path'], str)
+            assert isinstance(info['value'], str)
 
             valid_count = 0
             
-            # ==== TODO: 构建info ====
-            # ==== End ====
+            # ==== Video Samples ====
+            image_name_list, image_dict_list = sampler(file_idx, info['video_path'])
+    
+            # ==== Conversation Info ====
             
-            # ==== TODO: 将这一部分的逻辑改为根据视频路径返回image_dict_list, image_name_list的一个函数 ====
-            for index, img_path in enumerate(info['image']):
-                try:
-                    img = load_image(img_path.replace('kanelin/interlink7m/samples', 'vision-language-data/interlink7m'))
-                    img.verify()
-                    valid_count += 1
-                except Exception as e:
-                    print(e)
-                    print(img_path)
-                    continue
-
-                image_name_list.append(f"{file_idx:09d}-{index}")
-                image_dict_list.append(
-                    dict(
-                        __key__=f"{file_idx:09d}-{index}",
-                        jpg=img,
-                    )
-                )
-            # ==== End ====
+            human_value = "<image>"*len(image_name_list) 
             
-            if valid_count != info['conversations'][0]['value'].count('<image>'):
-                print('skip sample: ' + str(info))
-                continue
-
-            assert len(info['conversations']) == 2
-
+            human = {
+                'from': 'human',
+                "value": human_value,
+            }
+            
+            gpt = {
+                'from': 'gpt',
+                "value": info['value'],
+            }
+            
+            conversations_info = {
+                "conversations":[human,gpt],
+            }
+            
             # ipdb.set_trace()
             size += tar_writer.write(
                 dict(
                     __key__=f"{file_idx:09d}",
                     json=dict(
-                        prompt=info['conversations'][0]['value'],
-                        txt=info['conversations'][1]['value'],
+                        prompt=human_value,
+                        txt=info['value'],
                         info=info,
                         image_name_list=image_name_list
                     ),
@@ -132,8 +137,7 @@ def job(num_jobs=64, machine_id=0, total_machine=1):
     meta_data = json.load(open('/data/webvid/debug/data/rmwm_webvid_QA_train_clean_train.json', 'r')) 
     data = []
     
-    print(f'Converting meta dict file to required format...')
-    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image'])):
+    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image']),desc='Converting meta dict file to required format...'):
         video_path = meta_data['image'][str(key)]
         caption = meta_data['value'][str(key)]
         data.append({
@@ -180,10 +184,25 @@ def job(num_jobs=64, machine_id=0, total_machine=1):
     print(f"The precessing procedure for {len(data)} files ran for {(end_time - start_time)} seconds")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--machine_id", type=int, default=0)
-    parser.add_argument("--total_machine", type=int, default=1)
-    parser.add_argument("--workers", type=int, default=1) # 64
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--machine_id", type=int, default=0)
+    # parser.add_argument("--total_machine", type=int, default=1)
+    # parser.add_argument("--workers", type=int, default=1) # 64
+    # args = parser.parse_args()
 
-    job(num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine)
+    # job(num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine)
+    
+    save_path = "./debug/"
+    tar_name = "test"
+    meta_data = json.load(open('/data/webvid/debug/data/rmwm_webvid_QA_train_clean_train.json', 'r'))
+    data = []
+    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image'])):
+        video_path = meta_data['image'][str(key)]
+        caption = meta_data['value'][str(key)]
+        data.append({
+            'video_path': video_path,
+            'value': caption
+        })
+    samples = data[:10]
+    
+    process_tars(save_path, tar_name, samples)
