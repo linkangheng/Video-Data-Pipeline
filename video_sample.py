@@ -12,13 +12,17 @@ from tqdm import tqdm
 import numpy as np
 import argparse
 from PIL import Image
+import subprocess
 
 
 def get_cache_video(video_path):
     # Determine if the video exists
     if not smart_exists(video_path):
         error_message = f"Video file not found: {video_path}"
-        raise FileNotFoundError(error_message)
+        if smart_exists(video_path.replace("process_videos", "videos")):
+            video_path = video_path.replace("process_videos", "videos")
+        else:
+            raise FileNotFoundError(error_message)
     
     # Caching the video
     with smart_open(video_path, 'rb') as file_obj:
@@ -27,6 +31,11 @@ def get_cache_video(video_path):
             cache_video_path = temp_file.name
     return cache_video_path
 
+def get_video_total_frames(video_path):
+    command = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=nb_frames', '-of', 'default=nokey=1:noprint_wrappers=1', video_path]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    total_frames = int(result.stdout.strip())
+    return total_frames
     
 def extract_frames(video_path):
     interval = 13
@@ -45,12 +54,22 @@ def extract_frames(video_path):
     sample_num = 0
     success = True
 
-    while success and frame_count < total_frames:
-        success, image = cap.read()
+    while success and frame_count < total_frames -1 :
+        try:
+            success, image = cap.read()
+        
+        except cv2.error as e:
+            success = False
+            
         if not success:
             # Unable to read video normally,so use the last frame of the original video as sample
-            import ipdb;ipdb.set_trace()
-            raise Exception(f"Error: Unable to read video {video_path} normally")
+            if frame_count < total_frames -1:
+                success = True
+                frame_count += 1
+                continue
+            else:
+                return images
+            # raise Exception(f"Error: Unable to read video {video_path} normally")
         if (frame_count % frame_step == 0 and frame_count != total_frames) or frame_count == 0 or frame_count == total_frames - 1:
             try:
                 if sample_num > interval:
@@ -66,6 +85,58 @@ def extract_frames(video_path):
     cap.release()
     return images
 
+
+def extract_keyframes(video_path,frame_type):
+    '''
+    input: video_path,type = 'I' or 'P'
+    output: images,indices,total_frames
+    '''
+    # Extract all keyframes(Iframes) from the video
+    images = []
+    total_frames = get_video_total_frames(video_path)
+    
+    frame_info = subprocess.check_output(['ffprobe', '-select_streams', 'v', '-show_frames', '-show_entries', 'frame=pict_type', '-of', 'csv', video_path],stderr=subprocess.DEVNULL).decode().strip().split('\n')
+    indices = [i for i, line in enumerate(frame_info) if line.strip().endswith(frame_type)]
+    
+    temp_dir = tempfile.TemporaryDirectory()
+    output_pattern = os.path.join(temp_dir.name, 'output_%d.jpg')
+    if frame_type == 'I':
+        command = ['ffmpeg', '-hide_banner', '-i', video_path, '-vf', "select='eq(pict_type\,I)'", '-vsync', 'vfr', '-f', 'image2', output_pattern]
+        max_samples = 8
+    elif frame_type == 'P':
+        command = ['ffmpeg', '-hide_banner', '-i', video_path, '-vf', "select='not(eq(pict_type\,I))'", '-vsync', 'vfr', '-f', 'image2', output_pattern]
+        max_samples = 10
+    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    temp_files = sorted([os.path.join(temp_dir.name, f) for f in os.listdir(temp_dir.name) if f.startswith('output_')])
+    images = [Image.open(temp_file) for temp_file in temp_files]
+    
+    images = uniform_sample(images, max_samples)
+    indices = uniform_sample(indices, max_samples)
+    
+    if frame_type == 'I':
+        last_frame = os.path.join(temp_dir.name,"last_frame.jpg")
+        command = ['ffmpeg', '-hide_banner', '-sseof', '-1', '-i', video_path, '-vframes', '1', '-q:v', '2', last_frame]
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        images.append(Image.open(last_frame))
+        indices.append(total_frames-1)
+    
+    temp_dir.cleanup()    
+
+    return images,indices,total_frames
+
+def uniform_sample(lst, num_samples):
+    length = len(lst)
+    if length <= num_samples:
+        return lst
+    
+    interval = (length - 1) / (num_samples - 1)
+    result = []
+    for i in range(0, length, int(interval)):
+        result.append(lst[i])
+        if len(result) == num_samples:
+            break
+    return result
 
 def get_processed(log_file):
     try:
@@ -92,12 +163,18 @@ def tracking_process(local_video_path):
     pass
 
 
+
 def process_video(video_path):
     global delete_counter
     global cached_files
     global progress_count
     
-    cache_video_path = get_cache_video(video_path)
+    try:
+        cache_video_path = get_cache_video(video_path)
+    except Exception as e:
+        error_message = f"Error caching file {video_path}: {e}"
+        print(error_message)
+        return
     
     # Process the video
     try:
@@ -184,3 +261,4 @@ if __name__ == "__main__":
     machine_id = args.machine_id
     # TYPE = args.type
     ditribute_main(machine_id)
+    # rclone ls oss:a-share/vd-foundation___InternVid-10M-FLT/raw/InternVId-FLT_11.zip

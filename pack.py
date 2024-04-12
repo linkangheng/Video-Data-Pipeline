@@ -39,7 +39,7 @@ black_words = [
 tar_size = 500
 # 设置环境变量
 os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
-
+process_dataset = ''
 
 def load_image(image_path):
     if 's3://' in image_path:
@@ -51,14 +51,21 @@ def load_image(image_path):
         
     return image
 
-def sampler(file_idx, video_path):
+def sampler(file_idx, video_path, args=None):
     # TODO: 根据给定的视频路径，返回视频的关键帧的PIL列表
+    if args:
+        process_dataset = args.process_dataset
+    else:
+        process_dataset = 'hd3m'
+    
     image_name_list = []
     image_dict_list = []
     
-    video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
+    if process_dataset == 'webvid':
+        video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
+    elif process_dataset == 'hd3m':
+        video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
     video_path = os.path.join(video_prefix, video_path)
-    
     cache_path = get_cache_video(video_path)
     images = extract_frames(cache_path)
     os.remove(cache_path)
@@ -72,7 +79,7 @@ def sampler(file_idx, video_path):
     
     return image_name_list, image_dict_list
 
-def process_tars(save_path, tar_name, samples):
+def process_tars(save_path, tar_name, samples,args=None):
     print(f"[{datetime.datetime.now()}] start to package {len(samples)} files to tar file {tar_name}")
     for tar_idx, tar_start in enumerate(tqdm(range(0, len(samples), tar_size))):
         tar_writer = TarWriter(os.path.join(save_path, f"{tar_name}-{tar_idx}.tar"))
@@ -92,7 +99,11 @@ def process_tars(save_path, tar_name, samples):
             valid_count = 0
             
             # ==== Video Samples ====
-            image_name_list, image_dict_list = sampler(file_idx, info['video_path'])
+            try:
+                image_name_list, image_dict_list = sampler(file_idx, info['video_path'],args=args)
+            except:
+                print(f"Error when processing video {info['video_path']}")
+                continue
     
             # ==== Conversation Info ====
             
@@ -161,7 +172,9 @@ def load_hd3m():
 
 
 
-def job(dataset, num_jobs=64, machine_id=0, total_machine=1,):
+def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
+    global process_dataset
+    process_dataset = dataset
     
     if dataset == 'webvid':
         data = load_webvid()
@@ -211,30 +224,36 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,):
     print(f"The precessing procedure for {len(data)} files ran for {(end_time - start_time)} seconds")
 
 def debug():
-    save_path = "./debug/"
-    tar_name = "test"
-    meta_data = json.load(open('/data/webvid/debug/data/rmwm_webvid_QA_train_clean_train.json', 'r'))
-    data = []
-    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image'])):
-        video_path = meta_data['image'][str(key)]
-        caption = meta_data['value'][str(key)]
-        data.append({
-            'video_path': video_path,
-            'value': caption
-        })
-    samples = data[:10]
+    # save_path = "/data/webvid/debug/tmp/"
+    # tar_name = "test"
+    # # data = load_webvid()
+    # data = load_hd3m()
+    # random.shuffle(data)
+    # samples = data[:1000]
     
-    process_tars(save_path, tar_name, samples)
+    # wrong_case = "G11j0f3HkdE/G11j0f3HkdE.18_0.mp4"
+    
+    # process_tars(save_path, tar_name, samples)
+    
+    # ================ debug broken videos ==================
+    # video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
+    broken_video = "Ob80WT1NhcY/Ob80WT1NhcY.42_2.mp4"
+    # video_path = os.path.join(video_prefix, broken_video)
+    # cache_path = get_cache_video(video_path)
+    # images = extract_frames(cache_path)
+    
+    image_name_list, image_dict_list = sampler(0, broken_video)
+    import ipdb;ipdb.set_trace()
+    
     
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--machine_id", type=int, default=0)
-    parser.add_argument("--total_machine", type=int, default=1)
+    parser.add_argument("--total_machine", type=int, default=8)
     parser.add_argument("--dataset", type=str, default="hd3m",help="webvid, hd3m, etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
     args = parser.parse_args()
-
+    
     job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
-    
-    
+    # debug()
