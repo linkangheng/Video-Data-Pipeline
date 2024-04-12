@@ -85,35 +85,36 @@ def extract_frames(video_path):
     cap.release()
     return images
 
-
-def extract_keyframes(video_path,frame_type):
+def keyframes_sampler(video_path, frame_type, max_samples, args=None):
     '''
     input: video_path,type = 'I' or 'P'
     output: images,indices,total_frames
     '''
-    # Extract all keyframes(Iframes) from the video
+    # Extract all keyframes(Iframes) from the video, Only Support Intern-Vid now
     images = []
     total_frames = get_video_total_frames(video_path)
     
     frame_info = subprocess.check_output(['ffprobe', '-select_streams', 'v', '-show_frames', '-show_entries', 'frame=pict_type', '-of', 'csv', video_path],stderr=subprocess.DEVNULL).decode().strip().split('\n')
-    indices = [i for i, line in enumerate(frame_info) if line.strip().endswith(frame_type)]
-    
     temp_dir = tempfile.TemporaryDirectory()
     output_pattern = os.path.join(temp_dir.name, 'output_%d.jpg')
     if frame_type == 'I':
+        indices = [i for i, line in enumerate(frame_info) if line.strip().endswith("I")]
         command = ['ffmpeg', '-hide_banner', '-i', video_path, '-vf', "select='eq(pict_type\,I)'", '-vsync', 'vfr', '-f', 'image2', output_pattern]
-        max_samples = 8
     elif frame_type == 'P':
+        indices = [i for i, line in enumerate(frame_info) if not line.strip().endswith("I")]
         command = ['ffmpeg', '-hide_banner', '-i', video_path, '-vf', "select='not(eq(pict_type\,I))'", '-vsync', 'vfr', '-f', 'image2', output_pattern]
-        max_samples = 10
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     temp_files = sorted([os.path.join(temp_dir.name, f) for f in os.listdir(temp_dir.name) if f.startswith('output_')])
     images = [Image.open(temp_file) for temp_file in temp_files]
+    if frame_type == 'P':
+        # 因为I帧会自动添加最后一帧，所以这里需要去掉P帧的最后一帧
+        images = images[:-1]
+        indices = indices[:-1]
     
     images = uniform_sample(images, max_samples)
     indices = uniform_sample(indices, max_samples)
-    
+
     if frame_type == 'I':
         last_frame = os.path.join(temp_dir.name,"last_frame.jpg")
         command = ['ffmpeg', '-hide_banner', '-sseof', '-1', '-i', video_path, '-vframes', '1', '-q:v', '2', last_frame]
@@ -137,6 +138,51 @@ def uniform_sample(lst, num_samples):
         if len(result) == num_samples:
             break
     return result
+
+def combineKeyFrames(I_images, I_indices, P_images, P_indices):
+    """
+    按照时序合并 I 帧和 P 帧, 使得合并后的帧按照时序排列
+    
+    参数:
+    I_images (list): I 帧图像列表
+    I_indices (list): I 帧图像在视频中的索引列表
+    P_images (list): P 帧图像列表
+    P_indices (list): P 帧图像在视频中的索引列表
+    
+    返回:
+    new_images (list): 新的图像列表
+    new_indices (list): 新的索引列表
+    frame_types (list): 记录每个位置的帧类型, 0 表示 I 帧, 1 表示 P 帧
+    """
+    new_images = []
+    new_indices = []
+    frame_types = []
+
+    i, p = 0, 0
+    while i < len(I_indices) and p < len(P_indices):
+        if I_indices[i] < P_indices[p]:
+            new_images.append(I_images[i])
+            new_indices.append(I_indices[i])
+            frame_types.append("I")  # 0 表示 I 帧
+            i += 1
+        else:
+            new_images.append(P_images[p])
+            new_indices.append(P_indices[p])
+            frame_types.append("P")  # 1 表示 P 帧
+            p += 1
+
+    # 如果还有剩余的I帧或P帧,则添加到新的list中
+    if i < len(I_indices):
+        new_images.extend(I_images[i:])
+        new_indices.extend(I_indices[i:])
+        frame_types.extend(["I"] * (len(I_indices) - i))
+    elif p < len(P_indices):
+        new_images.extend(P_images[p:])
+        new_indices.extend(P_indices[p:])
+        frame_types.extend(["P"] * (len(P_indices) - p))
+
+    return new_images, new_indices, frame_types
+
 
 def get_processed(log_file):
     try:
