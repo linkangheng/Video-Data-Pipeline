@@ -4,7 +4,6 @@ import numpy as np
 from PIL import Image
 from tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames
 import subprocess
-import tempfile
 
 
 
@@ -52,12 +51,15 @@ def KF_sampler(file_idx, video_path, args=None):
     I_images,I_indices,I_total_frames = keyframes_sampler(video_path, 'I', max_samples = args.Iframes) 
     len_PFrames = args.total_frames - len(I_images)
     P_images,P_indices,P_total_frames = keyframes_sampler(video_path, 'P', max_samples = len_PFrames)
-    
+
+    # assert len(I_images) == len(I_indices), "len(I_images) != len(I_indices)"
+    # assert len(P_images) == len(P_indices), "len(P_images) != len(P_indices)"
     assert I_total_frames == P_total_frames, "I_total_frames != P_total_frames"
-    
-    images, indices, frame_types = combineKeyFrames(I_images, I_indices, P_images, P_indices)
+    try:
+        images, indices, frame_types = combineKeyFrames(I_images, I_indices, P_images, P_indices)
+    except:
+        print(f"I_images: {len(I_images)}, I_indices: {len(I_indices)}, P_images: {len(P_images)}, P_indices: {len(P_indices)}")
     indices_list = [int((i/(I_total_frames-1)) * args.time_scale) for i in indices]
-    
     image_name_list = []
     image_dict_list = []
     
@@ -68,7 +70,6 @@ def KF_sampler(file_idx, video_path, args=None):
             jpg=img,
         ))
     
-    import pdb; pdb.set_trace() 
     return image_name_list, image_dict_list, indices_list, frame_types
 
 
@@ -77,6 +78,8 @@ def debug():
         Iframes = 8
         max_frames = 24
         time_scale = 1000
+        dataset = "internvid"
+        total_frames = 24
 
     file_idx = 0
     video_path = "/data/webvid/debug/test.mp4"

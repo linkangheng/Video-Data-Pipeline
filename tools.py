@@ -13,7 +13,9 @@ import numpy as np
 import argparse
 from PIL import Image
 import subprocess
+import threading
 
+lock = threading.Lock()
 
 def get_cache_video(video_path):
     # Determine if the video exists
@@ -85,6 +87,14 @@ def extract_frames(video_path):
     cap.release()
     return images
 
+def get_last_frame(video_path):
+    cap = cv2.VideoCapture(video_path)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, cap.get(cv2.CAP_PROP_FRAME_COUNT) - 1)
+    ret, frame = cap.read()
+    frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    cap.release()
+    return frame
+
 def keyframes_sampler(video_path, frame_type, max_samples, args=None):
     '''
     input: video_path,type = 'I' or 'P'
@@ -104,23 +114,23 @@ def keyframes_sampler(video_path, frame_type, max_samples, args=None):
         indices = [i for i, line in enumerate(frame_info) if not line.strip().endswith("I")]
         command = ['ffmpeg', '-hide_banner', '-i', video_path, '-vf', "select='not(eq(pict_type\,I))'", '-vsync', 'vfr', '-f', 'image2', output_pattern]
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
+    
     temp_files = sorted([os.path.join(temp_dir.name, f) for f in os.listdir(temp_dir.name) if f.startswith('output_')])
+
     images = [Image.open(temp_file) for temp_file in temp_files]
+    
     if frame_type == 'P':
         # 因为I帧会自动添加最后一帧，所以这里需要去掉P帧的最后一帧
         images = images[:-1]
         indices = indices[:-1]
     
+    elif frame_type == 'I':
+        last_frame = os.path.join(temp_dir.name,"last_frame.jpg")
+        images.append(get_last_frame(video_path))
+        indices.append(total_frames-1)
+
     images = uniform_sample(images, max_samples)
     indices = uniform_sample(indices, max_samples)
-
-    if frame_type == 'I':
-        last_frame = os.path.join(temp_dir.name,"last_frame.jpg")
-        command = ['ffmpeg', '-hide_banner', '-sseof', '-1', '-i', video_path, '-vframes', '1', '-q:v', '2', last_frame]
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        images.append(Image.open(last_frame))
-        indices.append(total_frames-1)
     
     temp_dir.cleanup()    
 

@@ -1,5 +1,10 @@
 # ------------------------------------------------------------------------------------------------
 # Copyright (c) 2023 Megvii, Inc. All rights reserved.
+#  ssh 100.98.167.207
+#  conda activate webvid
+#  cd /data/webvid
+#  python pack.py
+#  python pack.py --machine_id 
 # ------------------------------------------------------------------------------------------------
 import os
 import re
@@ -18,6 +23,8 @@ import datetime
 import webdataset as wds
 # import pyarrow.parquet as pq
 import numpy as np
+from multiprocessing import Pool, cpu_count
+
 # import bbox_visualizer as bbv
 
 from copy import deepcopy
@@ -33,6 +40,8 @@ from joblib import Parallel, delayed
 from samplers import *
 from tools import extract_frames, get_cache_video
 from samplers import Un_sampler, KF_sampler
+import threading
+
 
 black_words = [
     'image unavailable',
@@ -56,6 +65,7 @@ def load_image(image_path):
 
 
 def process_tars(save_path, tar_name, samples,args=None):
+    # TODO: 单线程正常，多线程异常
     print(f"[{datetime.datetime.now()}] start to package {len(samples)} files to tar file {tar_name}")
     for tar_idx, tar_start in enumerate(tqdm(range(0, len(samples), tar_size))):
         tar_writer = TarWriter(os.path.join(save_path, f"{tar_name}-{tar_idx}.tar"))
@@ -63,10 +73,9 @@ def process_tars(save_path, tar_name, samples,args=None):
         size = 0
         total = 0
 
-        for file_idx, info in enumerate(tar_samples):
+        for file_idx, info in enumerate(tar_samples):\
             # try:
             # ipdb.set_trace()
-            import ipdb;ipdb.set_trace()
             image_dict_list = []
             image_name_list = []
 
@@ -84,8 +93,10 @@ def process_tars(save_path, tar_name, samples,args=None):
                     image_name_list, image_dict_list, indices_list, frame_types = KF_sampler(file_idx, info['video_path'],args=args)
                 else:
                     raise ValueError(f"args.type {args.type} is not supported")
-
-            except:
+                print(f"Successfully processed video samples {info['video_path']}")
+            except Exception as e:
+                # import ipdb;ipdb.set_trace()
+                print(e)
                 print(f"Error when processing video {info['video_path']}")
                 continue
     
@@ -114,7 +125,6 @@ def process_tars(save_path, tar_name, samples,args=None):
                 "conversations":[human,gpt],
             }
             
-            ipdb.set_trace()
             size += tar_writer.write(
                 dict(
                     __key__=f"{file_idx:09d}",
@@ -129,9 +139,6 @@ def process_tars(save_path, tar_name, samples,args=None):
                 size += tar_writer.write(image_dict)
             total += 1
                 
-            # except Exception as e:
-            #     print(e)
-            #     print(info)
 
         tar_writer.close()
         print(f"[{datetime.datetime.now()}] complete to write samples to tar file {tar_name}, size: {size}, nsamples: {total}")
@@ -163,7 +170,9 @@ def load_hd3m():
 
 def load_internvid():
     import pandas as pd
-    meta_data = pd.read_json('/data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl', lines=True)
+    #  debug: /data/webvid/debug/data/InternVid-10M-FLT-INFO-top10.jsonl
+    #  real: /data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl
+    meta_data = pd.read_json('/data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl', lines=True) 
     print("Loaded internvid json")
     data = []
     
@@ -175,10 +184,12 @@ def load_internvid():
             'video_path': file_name,
             'value': caption
         })
+    # import ipdb;ipdb.set_trace()
     return data
 
 
 def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
+    print(args)
     global process_dataset
     process_dataset = dataset
     
@@ -213,22 +224,39 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     per_job_size = truncated_length // num_jobs
     print(f'per job size will be 1 and {num_jobs} works in parallel!')
     print(f'total job size will be {per_job_size} == {truncated_length} / ({num_jobs})')
-
+    
+    # ============== 单线程调试 ============== 
     # for i in range(0, truncated_length, per_job_size):
     #     process_tars(
     #         save_path, 
     #         f"shard-{machine_id}-{i}-{i+per_job_size}",
     #         data[i:i+per_job_size], 
+    #         args=args
     #     )
 
-    Parallel(n_jobs=num_jobs)(delayed(process_tars)(
-        save_path, 
-        f"shard-{machine_id}-{i}-{i+per_job_size}",
-        data[i:i+per_job_size], 
-    ) for i in range(0, truncated_length, per_job_size))
+    #  ============== 只支持均匀抽帧 ==============
+    # Parallel(n_jobs=num_jobs)(delayed(process_tars)(
+    #     save_path, 
+    #     f"shard-{machine_id}-{i}-{i+per_job_size}",
+    #     data[i:i+per_job_size], 
+    #     args=args
+    # ) for i in range(0, truncated_length, per_job_size))
+    
+    #  ============== 支持ffmpeg ==============
+    with Pool(num_jobs) as pool:
+        # 创建一个迭代器，用于生成每个进程的任务参数
+        # 这里使用星号(*)来解包args，使其作为独立的参数传递给process_tars函数
+        results = pool.starmap(process_tars, [
+            (save_path, f"shard-{machine_id}-{i}-{i+per_job_size}", data[i:i+per_job_size], args)
+            for i in range(0, truncated_length, per_job_size)
+        ])
+    
+    pool.close()
+    pool.join()
 
     end_time = time.time()
     print(f"The precessing procedure for {len(data)} files ran for {(end_time - start_time)} seconds")
+
 
 def debug_online_data():
     # save_path = "/data/webvid/debug/tmp/"
@@ -275,7 +303,7 @@ if __name__ == "__main__":
     parser.add_argument("--time_scale", type=int, default=1000, help="Scale of relative timestamps") 
     args = parser.parse_args()
     
+    job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
+
+
     
-    # job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
-    
-    debug_local_data(args)
