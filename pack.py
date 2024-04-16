@@ -1,10 +1,9 @@
 # ------------------------------------------------------------------------------------------------
 # Copyright (c) 2023 Megvii, Inc. All rights reserved.
-#  ssh 100.98.167.207
 #  conda activate webvid
-#  cd /data/webvid
-#  python pack.py
-#  python pack.py --machine_id 
+#  python /data/webvid/pack.py --dataset webvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/webvid/pack/kf --machine_id 
+#  python /data/webvid/pack.py --dataset hd3m --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/hdvila/pack/kf --machine_id 
+#  python /data/webvid/pack.py --dataset internvid --workers 64 --type un --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un --machine_id 
 # ------------------------------------------------------------------------------------------------
 import os
 import re
@@ -73,7 +72,7 @@ def process_tars(save_path, tar_name, samples,args=None):
         size = 0
         total = 0
 
-        for file_idx, info in enumerate(tar_samples):\
+        for file_idx, info in enumerate(tar_samples):
             # try:
             # ipdb.set_trace()
             image_dict_list = []
@@ -93,7 +92,7 @@ def process_tars(save_path, tar_name, samples,args=None):
                     image_name_list, image_dict_list, indices_list, frame_types = KF_sampler(file_idx, info['video_path'],args=args)
                 else:
                     raise ValueError(f"args.type {args.type} is not supported")
-                print(f"Successfully processed video samples {info['video_path']}")
+                # print(f"Successfully processed video samples {info['video_path']}")
             except Exception as e:
                 # import ipdb;ipdb.set_trace()
                 print(e)
@@ -192,7 +191,6 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     print(args)
     global process_dataset
     process_dataset = dataset
-    
     if dataset == 'webvid':
         data = load_webvid()
         save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/webvid"
@@ -204,6 +202,9 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
         save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/pack"
     else:
         raise ValueError(f"dataset {dataset} is not supported")
+
+    if args.save_path:
+        save_path = args.save_path
 
     print(f'{len(data)} samples in total')
     data = data[machine_id::total_machine]
@@ -297,10 +298,11 @@ if __name__ == "__main__":
     parser.add_argument("--total_machine", type=int, default=8)
     parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
-    parser.add_argument("--type", type=str, default="kf",help="un for Uniform sampling, kf for I&P sampling")
+    parser.add_argument("--type", type=str, default="un",help="un for Uniform sampling, kf for I&P sampling")
     parser.add_argument("--total_frames", type=int, default=24, help="The total number of frames to extract from a video")
     parser.add_argument("--Iframes", type=int, default=8, help="The number of keyframes to extract from a video") 
     parser.add_argument("--time_scale", type=int, default=1000, help="Scale of relative timestamps") 
+    parser.add_argument("--save_path", type=str, default="/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un", help="Path to save the tar files") 
     args = parser.parse_args()
     
     job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)

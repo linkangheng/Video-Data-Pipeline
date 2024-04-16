@@ -9,22 +9,28 @@ import subprocess
 
 def Un_sampler(file_idx, video_path, args=None):
     # 用于均匀采样13帧
-    if args:
-        process_dataset = args.process_dataset
-    else:
-        process_dataset = 'hd3m'
-    
     image_name_list = []
     image_dict_list = []
     
-    if process_dataset == 'webvid':
+    if args.dataset == 'webvid':
         video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
-    elif process_dataset == 'hd3m':
+    elif args.dataset == 'hd3m':
         video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
+    elif args.dataset == 'internvid':
+        video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
+        
     video_path = os.path.join(video_prefix, video_path)
-    cache_path = get_cache_video(video_path)
-    images = extract_frames(cache_path)
-    os.remove(cache_path)
+    
+    if video_path.startswith("s3://"):
+        remote_path = video_path
+        video_path = get_cache_video(remote_path)
+    else:
+        remote_path = None
+    
+    images = extract_frames(video_path)
+    
+    if remote_path:
+        os.remove(video_path)
 
     for index, img in enumerate(images):
         image_name_list.append(f"{file_idx:09d}-{index}")
@@ -37,7 +43,6 @@ def Un_sampler(file_idx, video_path, args=None):
 
 def KF_sampler(file_idx, video_path, args=None):
     #  Only supported for InternVid dataset, whose video is local; I_total_frames == P_total_frames below
-    
     if args.dataset == 'webvid':
         video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
     elif args.dataset == 'hd3m':
@@ -46,7 +51,12 @@ def KF_sampler(file_idx, video_path, args=None):
         video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
     else:
         raise NotImplementedError("process_dataset not supported")
+    
     video_path = os.path.join(video_prefix, video_path)
+    
+    if video_path.startswith("s3://"):
+        remote_path = video_path
+        video_path = get_cache_video(remote_path)
     
     I_images,I_indices,I_total_frames = keyframes_sampler(video_path, 'I', max_samples = args.Iframes) 
     len_PFrames = args.total_frames - len(I_images)
@@ -69,6 +79,9 @@ def KF_sampler(file_idx, video_path, args=None):
             __key__=f"{file_idx:09d}-{index}",
             jpg=img,
         ))
+    
+    if remote_path:
+        os.remove(video_path)
     
     return image_name_list, image_dict_list, indices_list, frame_types
 
