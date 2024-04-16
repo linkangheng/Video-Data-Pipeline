@@ -27,6 +27,7 @@ from multiprocessing import Pool, cpu_count
 # import bbox_visualizer as bbv
 
 from copy import deepcopy
+import ijson
 from tqdm import tqdm
 from io import BytesIO
 from pathlib import Path
@@ -61,10 +62,73 @@ def load_image(image_path):
         
     return image
 
+def load_webvid():
+    os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
+    meta_data = json.load(open('/data/streamlit_source/raw_json/rmwm_webvid_QA_train_clean_train.json', 'r')) 
+    print("Loaded webvid json")
+    data = []
+    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image']),desc='Converting the Webvid format to required format...'):
+        video_path = meta_data['image'][str(key)]
+        caption = meta_data['value'][str(key)]
+        data.append({
+            'video_path': video_path,
+            'value': caption
+        })
+    
+    return data
+
+def load_hd3m():
+    os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
+    meta_data = json.load(open('/data/streamlit_source/raw_json/path_to_output_hd-3m3.json', 'r')) 
+    print("Loaded hd3m json")
+    data = []
+    for i in tqdm(meta_data, total=len(meta_data), desc='Converting hd3m format to required format...'):
+        data.append({
+            'video_path': i['video'],
+            'value': i['caption']
+        })
+    return data
+
+def load_how2link():
+    os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
+    prefix = "s3://kanelin/interlink7m/"
+    json_path = "/data/streamlit_source/raw_json/How2link.json"
+    data = []
+    
+    with open(json_path, 'r') as f:
+        for record in tqdm(ijson.items(f, 'item'), desc='Converting the How2link format to required format...'):
+            for clip in record['clips']:
+                clip_path = "/".join(clip['clip_path'].split("/")[-3:]) + ".mp4"
+                video_path = os.path.join(prefix, clip_path)
+                caption = clip['caption']
+                data.append({
+                    'video_path': video_path,
+                    'value': caption
+                })
+                
+    return data
+
+def load_internvid():
+    import pandas as pd
+    #  debug: /data/webvid/debug/data/InternVid-10M-FLT-INFO-top10.jsonl
+    #  real: /data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl
+    meta_data = pd.read_json('/data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl', lines=True) 
+    print("Loaded internvid json")
+    data = []
+    
+    for idx in tqdm(range(len(meta_data)), total=len(meta_data), desc='Converting internvid format to required format...'):
+        file_name = os.path.join("_".join([meta_data['YoutubeID'][idx],meta_data['Start_timestamp'][idx],meta_data['End_timestamp'][idx]]) + ".mp4")
+        caption = meta_data['Caption'][idx]
+        
+        data.append({
+            'video_path': file_name,
+            'value': caption
+        })
+    # import ipdb;ipdb.set_trace()
+    return data
 
 
 def process_tars(save_path, tar_name, samples,args=None):
-    # TODO: 单线程正常，多线程异常
     print(f"[{datetime.datetime.now()}] start to package {len(samples)} files to tar file {tar_name}")
     for tar_idx, tar_start in enumerate(tqdm(range(0, len(samples), tar_size))):
         tar_writer = TarWriter(os.path.join(save_path, f"{tar_name}-{tar_idx}.tar"))
@@ -141,50 +205,6 @@ def process_tars(save_path, tar_name, samples,args=None):
 
         tar_writer.close()
         print(f"[{datetime.datetime.now()}] complete to write samples to tar file {tar_name}, size: {size}, nsamples: {total}")
-
-def load_webvid():
-    meta_data = json.load(open('/data/streamlit_source/raw_json/rmwm_webvid_QA_train_clean_train.json', 'r')) 
-    print("Loaded webvid json")
-    data = []
-    for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image']),desc='Converting the Webvid format to required format...'):
-        video_path = meta_data['image'][str(key)]
-        caption = meta_data['value'][str(key)]
-        data.append({
-            'video_path': video_path,
-            'value': caption
-        })
-    
-    return data
-
-def load_hd3m():
-    meta_data = json.load(open('/data/streamlit_source/raw_json/path_to_output_hd-3m3.json', 'r')) 
-    print("Loaded hd3m json")
-    data = []
-    for i in tqdm(meta_data, total=len(meta_data), desc='Converting hd3m format to required format...'):
-        data.append({
-            'video_path': i['video'],
-            'value': i['caption']
-        })
-    return data
-
-def load_internvid():
-    import pandas as pd
-    #  debug: /data/webvid/debug/data/InternVid-10M-FLT-INFO-top10.jsonl
-    #  real: /data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl
-    meta_data = pd.read_json('/data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl', lines=True) 
-    print("Loaded internvid json")
-    data = []
-    
-    for idx in tqdm(range(len(meta_data)), total=len(meta_data), desc='Converting internvid format to required format...'):
-        file_name = os.path.join("_".join([meta_data['YoutubeID'][idx],meta_data['Start_timestamp'][idx],meta_data['End_timestamp'][idx]]) + ".mp4")
-        caption = meta_data['Caption'][idx]
-        
-        data.append({
-            'video_path': file_name,
-            'value': caption
-        })
-    # import ipdb;ipdb.set_trace()
-    return data
 
 
 def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
