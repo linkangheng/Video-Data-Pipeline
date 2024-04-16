@@ -57,6 +57,8 @@ def KF_sampler(file_idx, video_path, args=None):
     if video_path.startswith("s3://"):
         remote_path = video_path
         video_path = get_cache_video(remote_path)
+    else:
+        remote_path = ""
     
     I_images,I_indices,I_total_frames = keyframes_sampler(video_path, 'I', max_samples = args.Iframes) 
     len_PFrames = args.total_frames - len(I_images)
@@ -80,7 +82,7 @@ def KF_sampler(file_idx, video_path, args=None):
             jpg=img,
         ))
     
-    if remote_path:
+    if len(remote_path) > 0:
         os.remove(video_path)
     
     return image_name_list, image_dict_list, indices_list, frame_types

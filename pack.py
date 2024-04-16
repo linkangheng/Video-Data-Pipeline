@@ -1,7 +1,8 @@
 # ------------------------------------------------------------------------------------------------
 # Copyright (c) 2023 Megvii, Inc. All rights reserved.
 #  conda activate webvid
-#  python /data/webvid/pack.py --dataset webvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/webvid/pack/kf --machine_id 
+#  python /data/webvid/pack.py --dataset internvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/pack/kf --total_machine 16 --machine_id  
+#  python /data/webvid/pack.py --dataset webvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/webvid/pack/kf  --machine_id 
 #  python /data/webvid/pack.py --dataset hd3m --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/hdvila/pack/kf --machine_id 
 #  python /data/webvid/pack.py --dataset internvid --workers 64 --type un --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un --machine_id 
 # ------------------------------------------------------------------------------------------------
@@ -316,9 +317,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--machine_id", type=int, default=0)
     parser.add_argument("--total_machine", type=int, default=8)
-    parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid etc.")
+    parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid, how2link etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
-    parser.add_argument("--type", type=str, default="un",help="un for Uniform sampling, kf for I&P sampling")
+    parser.add_argument("--type", type=str, default="un",help="un, kf; un for Uniform sampling, kf for I&P sampling")
     parser.add_argument("--total_frames", type=int, default=24, help="The total number of frames to extract from a video")
     parser.add_argument("--Iframes", type=int, default=8, help="The number of keyframes to extract from a video") 
     parser.add_argument("--time_scale", type=int, default=1000, help="Scale of relative timestamps") 
