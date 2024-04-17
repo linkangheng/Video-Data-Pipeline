@@ -156,7 +156,7 @@ def process_tars(save_path, tar_name, samples,args=None):
                 elif args.type.lower() == 'kf':
                     image_name_list, image_dict_list, indices_list, frame_types = KF_sampler(file_idx, info['video_path'],args=args)
                 else:
-                    raise ValueError(f"args.type {args.type} is not supported")
+                    raise ValueError(f"sample types {args.type} is not supported")
                 # print(f"Successfully processed video samples {info['video_path']}")
             except Exception as e:
                 # import ipdb;ipdb.set_trace()
