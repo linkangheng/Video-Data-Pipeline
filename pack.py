@@ -5,6 +5,7 @@
 #  python /data/webvid/pack.py --dataset webvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/webvid/pack/kf  --machine_id 
 #  python /data/webvid/pack.py --dataset hd3m --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/hdvila/pack/kf --machine_id 
 #  python /data/webvid/pack.py --dataset internvid --workers 64 --type un --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un --machine_id 
+#  sudo python /data/webvid/pack.py --dataset how2link --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/kf
 # ------------------------------------------------------------------------------------------------
 import os
 import re
@@ -92,18 +93,17 @@ def load_hd3m():
 
 def load_how2link():
     os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
-    prefix = "s3://kanelin/interlink7m/"
-    json_path = "/data/streamlit_source/raw_json/How2link.json"
+    # json_path = "/data/streamlit_source/raw_json/How2link.json"
+    json_path = "/data/webvid/How2link.json"
     data = []
     
     with open(json_path, 'r') as f:
-        for record in tqdm(ijson.items(f, 'item'), desc='Converting the How2link format to required format...'):
+        for record in tqdm(ijson.items(f, 'item'), desc='Converting the How2link format to required format...',total=932157):
             for clip in record['clips']:
                 clip_path = "/".join(clip['clip_path'].split("/")[-3:]) + ".mp4"
-                video_path = os.path.join(prefix, clip_path)
                 caption = clip['caption']
                 data.append({
-                    'video_path': video_path,
+                    'video_path': clip_path,
                     'value': caption
                 })
                 
@@ -154,6 +154,7 @@ def process_tars(save_path, tar_name, samples,args=None):
                 if args.type.lower() == 'un':
                     image_name_list, image_dict_list = Un_sampler(file_idx, info['video_path'],args=args)
                 elif args.type.lower() == 'kf':
+                    import ipdb;ipdb.set_trace()
                     image_name_list, image_dict_list, indices_list, frame_types = KF_sampler(file_idx, info['video_path'],args=args)
                 else:
                     raise ValueError(f"sample types {args.type} is not supported")
@@ -221,6 +222,9 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     elif dataset == 'internvid':
         data = load_internvid()
         save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/pack"
+    elif dataset == 'how2link':
+        data = load_how2link()
+        save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/pack/"
     else:
         raise ValueError(f"dataset {dataset} is not supported")
 
@@ -248,13 +252,13 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     print(f'total job size will be {per_job_size} == {truncated_length} / ({num_jobs})')
     
     # ============== 单线程调试 ============== 
-    # for i in range(0, truncated_length, per_job_size):
-    #     process_tars(
-    #         save_path, 
-    #         f"shard-{machine_id}-{i}-{i+per_job_size}",
-    #         data[i:i+per_job_size], 
-    #         args=args
-    #     )
+    for i in range(0, truncated_length, per_job_size):
+        process_tars(
+            save_path, 
+            f"shard-{machine_id}-{i}-{i+per_job_size}",
+            data[i:i+per_job_size], 
+            args=args
+        )
 
     #  ============== 只支持均匀抽帧 ==============
     # Parallel(n_jobs=num_jobs)(delayed(process_tars)(
@@ -265,13 +269,13 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     # ) for i in range(0, truncated_length, per_job_size))
     
     #  ============== 支持ffmpeg ==============
-    with Pool(num_jobs) as pool:
-        # 创建一个迭代器，用于生成每个进程的任务参数
-        # 这里使用星号(*)来解包args，使其作为独立的参数传递给process_tars函数
-        results = pool.starmap(process_tars, [
-            (save_path, f"shard-{machine_id}-{i}-{i+per_job_size}", data[i:i+per_job_size], args)
-            for i in range(0, truncated_length, per_job_size)
-        ])
+    # with Pool(num_jobs) as pool:
+    #     # 创建一个迭代器，用于生成每个进程的任务参数
+    #     # 这里使用星号(*)来解包args，使其作为独立的参数传递给process_tars函数
+    #     results = pool.starmap(process_tars, [
+    #         (save_path, f"shard-{machine_id}-{i}-{i+per_job_size}", data[i:i+per_job_size], args)
+    #         for i in range(0, truncated_length, per_job_size)
+    #     ])
     
     pool.close()
     pool.join()

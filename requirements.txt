@@ -1,0 +1,14 @@
+megfile
+glob2
+argparse
+ipdb
+numpy
+multiprocess
+joblib
+ijson
+tqdm
+pathlib
+Pillow
+webdataset
+opencv-python
+pandas

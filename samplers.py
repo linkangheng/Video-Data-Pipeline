@@ -18,7 +18,8 @@ def Un_sampler(file_idx, video_path, args=None):
         video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
     elif args.dataset == 'internvid':
         video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
-        
+    elif args.dataset == 'how2link':
+        video_prefix = "s3://kanelin/interlink7m/"
     video_path = os.path.join(video_prefix, video_path)
     
     if video_path.startswith("s3://"):
@@ -49,6 +50,8 @@ def KF_sampler(file_idx, video_path, args=None):
         video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
     elif args.dataset == 'internvid':
         video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
+    elif args.dataset == 'how2link':
+        video_prefix = "s3://kanelin/interlink7m/"
     else:
         raise NotImplementedError("process_dataset not supported")
     

@@ -1,3 +1,5 @@
 debug/
 checkpoint/
 temp*
+How2link.json
+__pycache__/
