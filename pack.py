@@ -93,11 +93,12 @@ def load_hd3m():
 def load_how2link():
     os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
     prefix = "s3://kanelin/interlink7m/"
-    json_path = "/data/streamlit_source/raw_json/How2link.json"
+    # json_path = "/data/streamlit_source/raw_json/How2link.json"
+    json_path = "How2link.json"
     data = []
     
     with open(json_path, 'r') as f:
-        for record in tqdm(ijson.items(f, 'item'), desc='Converting the How2link format to required format...'):
+        for record in tqdm(ijson.items(f, 'item'), desc='Converting the How2link format to required format...',total=932157):
             for clip in record['clips']:
                 clip_path = "/".join(clip['clip_path'].split("/")[-3:]) + ".mp4"
                 video_path = os.path.join(prefix, clip_path)
@@ -326,7 +327,9 @@ if __name__ == "__main__":
     parser.add_argument("--save_path", type=str, default="/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un", help="Path to save the tar files") 
     args = parser.parse_args()
     
-    job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
+    # job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
+    data = load_how2link()
+    import ipdb; ipdb.set_trace()
 
 
     
