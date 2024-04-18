@@ -89,7 +89,7 @@ def extract_frames(video_path):
 
 def get_last_frame(video_path):
     cap = cv2.VideoCapture(video_path)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, cap.get(cv2.CAP_PROP_FRAME_COUNT) - 1)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, cap.get(cv2.CAP_PROP_FRAME_COUNT) - 2)
     ret, frame = cap.read()
     frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     cap.release()

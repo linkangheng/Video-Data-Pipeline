@@ -6,6 +6,7 @@
 #  python /data/webvid/pack.py --dataset hd3m --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/hdvila/pack/kf --machine_id 
 #  python /data/webvid/pack.py --dataset internvid --workers 64 --type un --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un --machine_id 
 #  sudo python /data/webvid/pack.py --dataset how2link --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/kf
+#  python /data/webvid/pack.py --dataset ego4d --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/ego4d/pack/kf --total_machine 8 --machine_id 0
 # ------------------------------------------------------------------------------------------------
 import os
 import re
@@ -75,6 +76,19 @@ def load_webvid():
         data.append({
             'video_path': video_path,
             'value': caption
+        })
+    
+    return data
+
+def load_ego4d():
+    os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
+    meta_data = json.load(open('/data/streamlit_source/raw_json/ego4d.json', 'r')) 
+    print("Loaded ego3d json")
+    data = []
+    for i in tqdm(meta_data, total=len(meta_data), desc='Converting ego3d format to required format...'):
+        data.append({
+            'video_path': i['video_path'],
+            'value': i['caption']
         })
     
     return data
@@ -154,7 +168,6 @@ def process_tars(save_path, tar_name, samples,args=None):
                 if args.type.lower() == 'un':
                     image_name_list, image_dict_list = Un_sampler(file_idx, info['video_path'],args=args)
                 elif args.type.lower() == 'kf':
-                    import ipdb;ipdb.set_trace()
                     image_name_list, image_dict_list, indices_list, frame_types = KF_sampler(file_idx, info['video_path'],args=args)
                 else:
                     raise ValueError(f"sample types {args.type} is not supported")
@@ -225,6 +238,9 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     elif dataset == 'how2link':
         data = load_how2link()
         save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/pack/"
+    elif dataset == 'ego4d':
+        data = load_ego4d()
+        save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/ego4d/pack/kf"
     else:
         raise ValueError(f"dataset {dataset} is not supported")
 
@@ -252,13 +268,13 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     print(f'total job size will be {per_job_size} == {truncated_length} / ({num_jobs})')
     
     # ============== 单线程调试 ============== 
-    for i in range(0, truncated_length, per_job_size):
-        process_tars(
-            save_path, 
-            f"shard-{machine_id}-{i}-{i+per_job_size}",
-            data[i:i+per_job_size], 
-            args=args
-        )
+    # for i in range(0, truncated_length, per_job_size):
+    #     process_tars(
+    #         save_path, 
+    #         f"shard-{machine_id}-{i}-{i+per_job_size}",
+    #         data[i:i+per_job_size], 
+    #         args=args
+    #     )
 
     #  ============== 只支持均匀抽帧 ==============
     # Parallel(n_jobs=num_jobs)(delayed(process_tars)(
@@ -269,13 +285,13 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     # ) for i in range(0, truncated_length, per_job_size))
     
     #  ============== 支持ffmpeg ==============
-    # with Pool(num_jobs) as pool:
-    #     # 创建一个迭代器，用于生成每个进程的任务参数
-    #     # 这里使用星号(*)来解包args，使其作为独立的参数传递给process_tars函数
-    #     results = pool.starmap(process_tars, [
-    #         (save_path, f"shard-{machine_id}-{i}-{i+per_job_size}", data[i:i+per_job_size], args)
-    #         for i in range(0, truncated_length, per_job_size)
-    #     ])
+    with Pool(num_jobs) as pool:
+        # 创建一个迭代器，用于生成每个进程的任务参数
+        # 这里使用星号(*)来解包args，使其作为独立的参数传递给process_tars函数
+        results = pool.starmap(process_tars, [
+            (save_path, f"shard-{machine_id}-{i}-{i+per_job_size}", data[i:i+per_job_size], args)
+            for i in range(0, truncated_length, per_job_size)
+        ])
     
     pool.close()
     pool.join()
@@ -321,7 +337,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--machine_id", type=int, default=0)
     parser.add_argument("--total_machine", type=int, default=8)
-    parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid, how2link etc.")
+    parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid, how2link, ego4d etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
     parser.add_argument("--type", type=str, default="un",help="un, kf; un for Uniform sampling, kf for I&P sampling")
     parser.add_argument("--total_frames", type=int, default=24, help="The total number of frames to extract from a video")
@@ -331,6 +347,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
+
+    # KF_sampler(0, "s3://vision-language-data/ego4d-full/ego4d/v2/video_540ss_splits/b700aae8-8350-44fe-be4c-cba85514aec0_27.mp4",args=args)
+    # oss:vision-language-data/ego4d-full/ego4d/v2/video_540ss_splits/b700aae8-8350-44fe-be4c-cba85514aec0_27.mp4
 
 
     
