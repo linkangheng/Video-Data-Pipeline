@@ -2,7 +2,9 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
-from tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames
+import sys 
+sys.path.append("/data/")
+from video_pack.tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames
 import subprocess
 
 
@@ -56,7 +58,7 @@ def KF_sampler(file_idx, video_path, args=None):
         video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
     elif args.dataset == 'how2link':
         video_prefix = "s3://kanelin/interlink7m/"
-    elif args.dataset == 'ego4d':
+    elif args.dataset == 'ego4d' or args == None:
         video_prefix = ""
     else:
         raise NotImplementedError("process_dataset not supported")
