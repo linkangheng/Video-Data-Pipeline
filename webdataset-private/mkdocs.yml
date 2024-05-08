@@ -1,0 +1,10 @@
+site_name: webdataset
+repo_url: http://github.com/webdataset/webdataset
+docs_dir: docsrc
+site_dir: docs
+nav:
+    - Home: index.md
+    - API: api/index.html
+    - Examples:
+      - CIFAR10: cifar10.md
+theme: readthedocs

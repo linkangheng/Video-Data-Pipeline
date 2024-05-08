@@ -22,14 +22,14 @@ DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 DEFAULT_IMAGE_TOKEN = "<image>"
+KEYFRAME_IMAGE_TOKEN = ["<Iimage>","<Pimage>"]
 DEFAULT_DREAM_TOKEN = "<dream>"
 DEFAULT_IMAGE_PATCH_TOKEN = "<im_patch>"
 DEFAULT_IM_START_TOKEN = "<im_start>"
 DEFAULT_IM_END_TOKEN = "<im_end>"
 DEFAULT_DREAM_START_TOKEN = "<dream_start>" # NOTE make llm dream!
 DEFAULT_DREAM_END_TOKEN = "<dream_end>" # NOTE make llm dream!
-special_token = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_PATCH_TOKEN * 400 + DEFAULT_IM_END_TOKEN + \
-                DEFAULT_DREAM_START_TOKEN + DEFAULT_IMAGE_PATCH_TOKEN * 64 + DEFAULT_DREAM_END_TOKEN
+special_token = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_PATCH_TOKEN * 256 + DEFAULT_IM_END_TOKEN
 
 data_dict = {
     'howtointerlink-un-v1': {
@@ -78,7 +78,14 @@ def save_to_tar(filename, stream, cached_data):
     for idx, image in enumerate(images):
         stream.write({"__key__": f"{filename}-{idx}", "jpg": image})
 
-def add_image_token(text):
+def special_count(tokenized_value, sample_type):
+    # if sample_type == "kf":
+    #     return tokenized_value.count('<Iimage>') + tokenized_value.count('<Pimage>')
+    # elif sample_type == "un":
+    #     return tokenized_value.count(special_token)
+    return tokenized_value.count(special_token)
+
+def add_image_token(text, sample_type):
     # deal with ambiguous image token in track (wo \n) and detection (w. \n) data
     # if DEFAULT_IMAGE_TOKEN + '\n' in text:
     #     text = text.replace(DEFAULT_IMAGE_TOKEN, special_token)
@@ -86,13 +93,21 @@ def add_image_token(text):
     #     text = text.replace(DEFAULT_IMAGE_TOKEN, special_token + '\n')
     # else:
     #     text = special_token + '\n' + text
-    return text.replace(DEFAULT_IMAGE_TOKEN, special_token)
+    #  ---------------------------------------------------------------------------
+    if sample_type == "kf":
+        for token in KEYFRAME_IMAGE_TOKEN:
+            text = text.replace(token, special_token)
+    elif sample_type == "un":
+        text = text.replace(DEFAULT_IMAGE_TOKEN, special_token)
+    else:
+        raise ValueError("sample_type should be specified!")
+    return text
 
-def conversate(prompt, text):
+def conversate(prompt, text, sample_type):
     return [
         {
             'from': 'human',
-            'value': add_image_token(prompt),
+            'value': add_image_token(prompt, sample_type),
         },
         {
             'from': 'gpt',
@@ -117,7 +132,7 @@ def tokenize_conversation(conversation, tokenizer):
 
     return input_ids, loss_masks, text
 
-def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokenizer):
+def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokenizer, sample_type):
     print(f"[{datetime.datetime.now()}] start to re-orgnize {len(samples)} tarfiles to shard {shard_name} tar file {tar_name}")
     Path(os.path.join(save_path, shard_name)).mkdir(parents=True, exist_ok=True)
     tar_writer = TarWriter(os.path.join(save_path, shard_name, f"{tar_name}.tar"))
@@ -137,13 +152,12 @@ def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokeni
         ))
 
         for file_idx, sample in enumerate(dataset):
-            # ipdb.set_trace()
             cached_key = f"{str(tar_idx)}-{str(file_idx)}"
-            if conversate(sample['json']['prompt'], sample['json']['txt'])[0]['value'].count(special_token) != len(sample['json']['image_name_list']):
+            if special_count(conversate(sample['json']['prompt'], sample['json']['txt'], sample_type)[0]['value'], sample_type) != len(sample['json']['image_name_list']):
                 # print(sample)
                 continue
             
-            input_ids, loss_masks, text = tokenize_conversation(conversate(sample['json']['prompt'], sample['json']['txt']), tokenizer)
+            input_ids, loss_masks, text = tokenize_conversation(conversate(sample['json']['prompt'], sample['json']['txt'],sample_type), tokenizer)
             
             if cached_token_len + len(input_ids) > 8000 and len(cached_data) > 0:
                 save_to_tar(cached_key, tar_writer, cached_data)
@@ -179,8 +193,9 @@ def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokeni
     tar_writer.close()
     print(f"[{datetime.datetime.now()}] complete to write samples to shard {shard_name} tar file {tar_name}, nsamples: {valid_cnt}, merged nsamples: {merged_samples_cnt}")
 
-def job(dataset_path, save_path, num_jobs=64, start=0, end=1, shard_size=3):
+def job(dataset_path, save_path, sample_type, num_jobs=64, start=0, end=1, shard_size=3):
     # import ipdb; ipdb.set_trace()
+    assert len(sample_type) > 0, "sample_type should be specified!"
     start_time = time.time()
     all_files = [os.path.join(dataset_path, x) for x in os.listdir(dataset_path) if x.endswith('.tar')]
     print(len(all_files))
@@ -207,8 +222,9 @@ def job(dataset_path, save_path, num_jobs=64, start=0, end=1, shard_size=3):
         #         save_path,
         #         f"{start}-{end}", 
         #         f"shard_{idx}-{i}-{i+shard_size}",
-        #         per_job_files[i:i+shard_size], 
-        #         tokenizer
+        #         per_job_files[i:i+shard_size],
+        #         tokenizer,
+        #         sample_type
         #     )
 
         Parallel(n_jobs=num_jobs)(delayed(tokenize_and_merge_tarfiles)(
@@ -216,7 +232,8 @@ def job(dataset_path, save_path, num_jobs=64, start=0, end=1, shard_size=3):
             f"{start}-{end}",
             f"shard_{idx}-{i}-{i+shard_size}",
             per_job_files[i:i+shard_size], 
-            tokenizer
+            tokenizer,
+            sample_type
         ) for i in range(0, len(per_job_files), shard_size))
 
     end_time = time.time()
@@ -228,14 +245,16 @@ if __name__ == "__main__":
     parser.add_argument("--end", type=int, default=1)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--shard_size", type=int, default=50)
-    parser.add_argument('--dataset_name', type=str, default="howtointerlink-kf-v1") 
+    parser.add_argument('--dataset_name', type=str, default="howtointerlink-kf-v1")
+    parser.add_argument('--sample_type', type=str, default="un", help="un, kf")
     args = parser.parse_args()
     
     job(
         dataset_path=data_dict[args.dataset_name]['path'],
         save_path=f'/mnt/shared-storage/tenant/hypertext/kanelin/tokenized_data/{args.dataset_name}-tokens_imgpatch_400_tokenlen_8k/',
-        num_jobs=args.workers, 
+        num_jobs=args.workers,
         shard_size=args.shard_size, 
         start=args.start,
-        end=args.end
+        end=args.end,
+        sample_type=args.sample_type
     )
