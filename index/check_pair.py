@@ -79,7 +79,7 @@ if __name__ == "__main__":
     # tokenizer_model = "/mnt/shared-storage/tenant/open-source/Llama-2-7b-hf/multimodal_tokenizer.model"
     # tokenizer = Llama2mmTokenizer(tokenizer_model)
     # print('[INFO] Start indexing...')
-    # res = index_tar('webvid-kf-v1', '/mnt/shared-storage/tenant/hypertext/kanelin/tokenized_data/howtointerlink-kf-v1-tokens_imgpatch_400_tokenlen_8k/0-1500/shard_0-185-190.tar', tokenizer)
+    # res = index_tar('webvid-kf-v1', '/mnt/shared-storage/tenant/hypertext/kanelin/tokenized_data/webvid-kf-v1-tokens_imgpatch_400_tokenlen_8k/6000-7000/shard_1-50-55.tar', tokenizer)
     # print(res)
     
     

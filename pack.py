@@ -107,8 +107,7 @@ def load_hd3m():
 
 def load_how2link():
     os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
-    # json_path = "/data/streamlit_source/raw_json/How2link.json"
-    json_path = "/data/webvid/How2link.json"
+    json_path = "/data/streamlit_source/raw_json/How2link.json"
     data = []
     
     with open(json_path, 'r') as f:
@@ -142,6 +141,15 @@ def load_internvid():
     # import ipdb;ipdb.set_trace()
     return data
 
+def load_sft(sft_path):
+    meta_data = json.load(open(sft_path))
+    data = []
+    for i in tqdm(meta_data, total=len(meta_data), desc='Converting hd3m format to required format...'):
+        data.append({
+            'video_path': i['video'],
+            'value': i['QA']
+        })
+    return data
 
 def process_tars(save_path, tar_name, samples,args=None):
     print(f"[{datetime.datetime.now()}] start to package {len(samples)} files to tar file {tar_name}")
@@ -154,26 +162,25 @@ def process_tars(save_path, tar_name, samples,args=None):
         for file_idx, info in enumerate(tar_samples):
             # try:
             # ipdb.set_trace()
-            image_dict_list = []
-            image_name_list = []
-
             assert isinstance(info['video_path'], str)
-            assert isinstance(info['value'], str)
+            # assert isinstance(info['value'], str)
 
             valid_count = 0
             
             # ==== Video Samples ====
             try:
-                # TODO : 统一 一下均匀采样的return
+                # TODO : 支持视频的打包
                 if args.type.lower() == 'un':
                     image_name_list, image_dict_list = Un_sampler(file_idx, info['video_path'],args=args)
                 elif args.type.lower() == 'kf':
                     image_name_list, image_dict_list, indices_list, frame_types = KF_sampler(file_idx, info['video_path'],args=args)
+                elif args.type.lower() == 'video-only':
+                    image_name_list, image_dict_list = Video_Reader(file_idx, info['video_path'],args=args)
                 else:
                     raise ValueError(f"sample types {args.type} is not supported")
                 # print(f"Successfully processed video samples {info['video_path']}")
             except Exception as e:
-                # import ipdb;ipdb.set_trace()
+                import ipdb;ipdb.set_trace()
                 print(e)
                 print(f"Error when processing video {info['video_path']}")
                 continue
@@ -186,6 +193,8 @@ def process_tars(save_path, tar_name, samples,args=None):
                 human_value = ""
                 for timestep, frame_type in zip(indices_list, frame_types):
                     human_value += f"<{frame_type}image>#{timestep}"
+            elif args.type.lower() == 'video-only':
+                human_value = ""
             else:
                 raise ValueError(f"args.type {args.type} is not supported")
             
@@ -203,21 +212,31 @@ def process_tars(save_path, tar_name, samples,args=None):
                 "conversations":[human,gpt],
             }
             
-            size += tar_writer.write(
-                dict(
-                    __key__=f"{file_idx:09d}",
-                    json=dict(
-                        prompt=human_value,
-                        txt=info['value'],
-                        info=info,
-                        image_name_list=image_name_list
-                    ),
-            ))
+            if args.type.lower() == 'video-only':
+                size += tar_writer.write(
+                    dict(
+                        __key__=f"{file_idx:09d}",
+                        json=dict(
+                            caption=info['value'],
+                            video_id=image_name_list[0]
+                        ),
+                ))
+            else:
+                size += tar_writer.write(
+                    dict(
+                        __key__=f"{file_idx:09d}",
+                        json=dict(
+                            prompt=human_value,
+                            txt=info['value'],
+                            info=info,
+                            image_name_list=image_name_list
+                        ),
+                ))
+            
             for image_dict in image_dict_list:
                 size += tar_writer.write(image_dict)
             total += 1
                 
-
         tar_writer.close()
         print(f"[{datetime.datetime.now()}] complete to write samples to tar file {tar_name}, size: {size}, nsamples: {total}")
 
@@ -242,9 +261,14 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
         data = load_ego4d()
         save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/ego4d/pack/kf"
     else:
-        raise ValueError(f"dataset {dataset} is not supported")
+        try:
+            data = load_sft(dataset)
+        except:
+            raise ValueError(f"dataset {dataset} is not supported")
 
     if args.save_path:
+        if not os.path.exists(args.save_path):
+            os.makedirs(args.save_path, exist_ok=True)
         save_path = args.save_path
 
     print(f'{len(data)} samples in total')
@@ -264,17 +288,17 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     Path(save_path).mkdir(parents=True, exist_ok=True)
 
     per_job_size = truncated_length // num_jobs
-    print(f'per job size will be 1 and {num_jobs} works in parallel!')
+    print(f'per job size will be {per_job_size} and {num_jobs} works in parallel!')
     print(f'total job size will be {per_job_size} == {truncated_length} / ({num_jobs})')
     
     # ============== 单线程调试 ============== 
-    # for i in range(0, truncated_length, per_job_size):
-    #     process_tars(
-    #         save_path, 
-    #         f"shard-{machine_id}-{i}-{i+per_job_size}",
-    #         data[i:i+per_job_size], 
-    #         args=args
-    #     )
+    for i in range(0, truncated_length, per_job_size):
+        process_tars(
+            save_path, 
+            f"shard-{machine_id}-{i}-{i+per_job_size}",
+            data[i:i+per_job_size], 
+            args=args
+        )
 
     #  ============== 只支持均匀抽帧 ==============
     # Parallel(n_jobs=num_jobs)(delayed(process_tars)(
@@ -285,16 +309,15 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     # ) for i in range(0, truncated_length, per_job_size))
     
     #  ============== 支持ffmpeg ==============
-    with Pool(num_jobs) as pool:
-        # 创建一个迭代器，用于生成每个进程的任务参数
-        # 这里使用星号(*)来解包args，使其作为独立的参数传递给process_tars函数
-        results = pool.starmap(process_tars, [
-            (save_path, f"shard-{machine_id}-{i}-{i+per_job_size}", data[i:i+per_job_size], args)
-            for i in range(0, truncated_length, per_job_size)
-        ])
-    
-    pool.close()
-    pool.join()
+    # with Pool(num_jobs) as pool:
+    #     # 创建一个迭代器，用于生成每个进程的任务参数
+    #     # 这里使用星号(*)来解包args，使其作为独立的参数传递给process_tars函数
+    #     results = pool.starmap(process_tars, [
+    #         (save_path, f"shard-{machine_id}-{i}-{i+per_job_size}", data[i:i+per_job_size], args)
+    #         for i in range(0, truncated_length, per_job_size)
+    #     ])
+    # pool.close()
+    # pool.join()
 
     end_time = time.time()
     print(f"The precessing procedure for {len(data)} files ran for {(end_time - start_time)} seconds")
@@ -324,7 +347,8 @@ def debug_online_data():
 
 def debug_local_data(args):
     save_path = "/data/webvid/debug/tmp/"
-    tar_name = "test-" + time.strftime("%Y%m%d-%H%M%S")
+    tar_name = "/data/video_pack/debug/tmp/test-20240509-173018-0.tar"
+    # tar_name = "test-" + time.strftime("%Y%m%d-%H%M%S")
     data = load_internvid()
     samples = data[:1000]
     process_tars(save_path, tar_name, samples, args)
@@ -339,17 +363,15 @@ if __name__ == "__main__":
     parser.add_argument("--total_machine", type=int, default=8)
     parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid, how2link, ego4d etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
-    parser.add_argument("--type", type=str, default="un",help="un, kf; un for Uniform sampling, kf for I&P sampling")
+    parser.add_argument("--type", type=str, default="video-only",help="un, kf, video-only; un for Uniform sampling, kf for I&P sampling")
     parser.add_argument("--total_frames", type=int, default=24, help="The total number of frames to extract from a video")
-    parser.add_argument("--Iframes", type=int, default=8, help="The number of keyframes to extract from a video") 
-    parser.add_argument("--time_scale", type=int, default=1000, help="Scale of relative timestamps") 
+    parser.add_argument("--Iframes", type=int, default=8, help="The number of keyframes to extract from a video")
+    parser.add_argument("--time_scale", type=int, default=1000, help="Scale of relative timestamps")
     parser.add_argument("--save_path", type=str, default="/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un", help="Path to save the tar files") 
     args = parser.parse_args()
     
     job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
 
-    # KF_sampler(0, "s3://vision-language-data/ego4d-full/ego4d/v2/video_540ss_splits/b700aae8-8350-44fe-be4c-cba85514aec0_27.mp4",args=args)
-    # oss:vision-language-data/ego4d-full/ego4d/v2/video_540ss_splits/b700aae8-8350-44fe-be4c-cba85514aec0_27.mp4
-
 
     
+

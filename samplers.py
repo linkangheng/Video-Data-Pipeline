@@ -6,8 +6,48 @@ import sys
 sys.path.append("/data/")
 from video_pack.tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames
 import subprocess
+import ffmpeg
 
 
+def Video_Reader(file_idx, video_path, args=None):
+    # 直接给出视频
+    video_name_list = []
+    video_dict_list = []
+    
+    if args.dataset == 'webvid':
+        video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
+    elif args.dataset == 'hd3m':
+        video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
+    elif args.dataset == 'internvid':
+        video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
+    elif args.dataset == 'how2link':
+        video_prefix = "s3://kanelin/interlink7m/"
+    elif args.dataset == 'ego4d':
+        video_prefix = ""
+    else:
+        video_prefix = ""
+        # raise NotImplementedError("process_dataset not supported")
+    video_path = os.path.join(video_prefix, video_path)
+    
+    if video_path.startswith("s3://"):
+        remote_path = video_path
+        video_path = get_cache_video(remote_path)
+    else:
+        remote_path = None
+    
+    with open(video_path, 'rb') as f:
+        video = f.read()
+    
+    if remote_path:
+        os.remove(video_path)
+
+    video_name_list.append(f"{file_idx:09d}")
+    video_dict_list.append(dict(
+        __key__=f"{file_idx:09d}",
+        mp4=video,
+    ))
+    
+    return video_name_list, video_dict_list
 
 def Un_sampler(file_idx, video_path, args=None):
     # 用于均匀采样13帧
