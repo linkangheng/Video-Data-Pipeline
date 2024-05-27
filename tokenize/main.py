@@ -81,7 +81,7 @@ def save_to_tar(filename, stream, cached_data):
     for idx, image in enumerate(images):
         stream.write({"__key__": f"{filename}-{idx}", "jpg": image})
 
-def special_count(tokenized_value, sample_type):
+def special_count(tokenized_value):
     # if sample_type == "kf":
     #     return tokenized_value.count('<Iimage>') + tokenized_value.count('<Pimage>')
     # elif sample_type == "un":
@@ -102,6 +102,8 @@ def add_image_token(text, sample_type):
             text = text.replace(token, special_token)
     elif sample_type == "un":
         text = text.replace(DEFAULT_IMAGE_TOKEN, special_token)
+    elif sample_type == "merlin-s":
+        pass
     else:
         raise ValueError("sample_type should be specified!")
     return text
@@ -118,6 +120,12 @@ def conversate(prompt, text, sample_type):
         }
     ]
 
+def conversate_multi(conversations):
+    for conversation in conversations:
+        if conversation['from'] == 'human':
+            conversation['value'] = add_image_token(conversation['value'], "un")
+    return conversations
+    
 def tokenize_conversation(conversation, tokenizer):
     input_ids = [1]
     loss_masks = [0]
@@ -156,11 +164,22 @@ def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokeni
         import ipdb; ipdb.set_trace()
         for file_idx, sample in enumerate(dataset):
             cached_key = f"{str(tar_idx)}-{str(file_idx)}"
-            if special_count(conversate(sample['json']['prompt'], sample['json']['txt'], sample_type)[0]['value'], sample_type) != len(sample['json']['image_name_list']):
-                # print(sample)
-                continue
-            
-            input_ids, loss_masks, text = tokenize_conversation(conversate(sample['json']['prompt'], sample['json']['txt'],sample_type), tokenizer)
+            # make sure the images_list and special_token are matched
+            if sample_type == 'merlin-s':
+                special_nums = 0
+                for dialog in sample['json']['conversations']:
+                    if dialog['from'] == 'human':
+                        special_nums += dialog['value'].count("<image>")
+                if special_nums != len(sample['json']['image_name_list']):
+                    continue
+            else:
+                if special_count(conversate(sample['json']['prompt'], sample['json']['txt'], sample_type)[0]['value']) != len(sample['json']['image_name_list']):
+                    # print(sample)
+                    continue
+            if sample_type == 'merlin-s':
+                input_ids, loss_masks, text = tokenize_conversation(conversate_multi(sample['json']['conversations']), tokenizer)
+            else:
+                input_ids, loss_masks, text = tokenize_conversation(conversate(sample['json']['prompt'], sample['json']['txt'],sample_type), tokenizer)
             
             if cached_token_len + len(input_ids) > 8000 and len(cached_data) > 0:
                 save_to_tar(cached_key, tar_writer, cached_data)
@@ -220,24 +239,27 @@ def job(dataset_path, save_path, sample_type, num_jobs=64, start=0, end=1, shard
     
     for idx, x in enumerate(range(0, truncated_length, num_jobs * shard_size)):
         per_job_files = all_files[x: x+num_jobs * shard_size]
-        for i in range(0, len(per_job_files), shard_size):
-            tokenize_and_merge_tarfiles(
-                save_path,
-                f"{start}-{end}", 
-                f"shard_{idx}-{i}-{i+shard_size}",
-                per_job_files[i:i+shard_size],
-                tokenizer,
-                sample_type
-            )
+        
+        # ========== for dubeg ==========
+        # for i in range(0, len(per_job_files), shard_size):
+        #     tokenize_and_merge_tarfiles(
+        #         save_path,
+        #         f"{start}-{end}", 
+        #         f"shard_{idx}-{i}-{i+shard_size}",
+        #         per_job_files[i:i+shard_size],
+        #         tokenizer,
+        #         sample_type
+        #     )
 
-        # Parallel(n_jobs=num_jobs)(delayed(tokenize_and_merge_tarfiles)(
-        #     save_path,
-        #     f"{start}-{end}",
-        #     f"shard_{idx}-{i}-{i+shard_size}",
-        #     per_job_files[i:i+shard_size], 
-        #     tokenizer,
-        #     sample_type
-        # ) for i in range(0, len(per_job_files), shard_size))
+        # ========== for multi-porcess ==========
+        Parallel(n_jobs=num_jobs)(delayed(tokenize_and_merge_tarfiles)(
+            save_path,
+            f"{start}-{end}",
+            f"shard_{idx}-{i}-{i+shard_size}",
+            per_job_files[i:i+shard_size], 
+            tokenizer,
+            sample_type
+        ) for i in range(0, len(per_job_files), shard_size))
 
     end_time = time.time()
     print(f"The precessing procedure for {len(all_files)} files ran for {(end_time - start_time)} seconds")
