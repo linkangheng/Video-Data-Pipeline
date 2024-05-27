@@ -218,6 +218,23 @@ def tracking_process(local_video_path):
     # TODO track all the videos 
     pass
 
+def load_image(image_path):
+    
+    from PIL import Image
+    import megfile
+    from io import BytesIO
+    import os
+    # os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
+    os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
+    
+    if 's3://' in image_path:
+        with megfile.smart_open(image_path, "rb") as f:
+            bytes_data = f.read()
+        image = Image.open(BytesIO(bytes_data), "r").convert('RGB')
+    else:
+        image = Image.open(image_path).convert('RGB')
+        
+    return image
 
 
 def process_video(video_path):
@@ -303,6 +320,48 @@ def ditribute_main(machine_id):
         futures = [executor.submit(process_video, line) for line in lines]
         for future in tqdm(as_completed(futures), total=len(futures), desc="Processing videos"):
             future.result()
+
+def merlin_s_qa_process(input_str):
+    pattern = r"<image>(?:#)*"
+    time_pattern = r"#\d+(?:\.\d+)?(?:-\d+\.\d+)?#"
+    timeSteps = re.findall(time_pattern, input_str)
+
+    # 使用re.findall查找所有匹配的子串
+    matches = re.findall(pattern, input_str)
+
+    # 处理结果，将匹配到的<image>和后面的#x组合起来
+    output = []
+    last_image_index = 0
+    for match in matches:
+        # 找到匹配项在原始字符串中的起始位置
+        start_index = input_str.find(match, last_image_index)
+        # 计算<image>标签的结束位置
+        end_index = start_index + len(match)
+        # 将<image>标签和后面的内容组合起来
+        output.append(input_str[start_index:end_index])
+        # 更新last_image_index为当前匹配项之后的位置
+        last_image_index = end_index
+    
+    res_list = []
+    for i,j in enumerate(output):
+        if j[-1] == '#':
+            res_list.append(j)
+        else:
+            output[i+1] = j + output[i+1]
+            continue
+    questions = []
+    for special_token, timeStep in zip(res_list, timeSteps):
+        question = "".join([special_token[:-1], timeStep])
+        questions.append(question)
+    answer = re.split("|".join(questions), input_str)[1:]
+    # process the summary info
+    questions.append("Summary this video.")
+    last_answer, summary = answer[-1].split('Summary:')
+    answer[-1] = last_answer
+    answer.append(summary)
+
+    return questions, answer
+
 
 def debug():
     line = "s3://kanelin/interlink7m/Howto-Interlink7M_subset_w_all_clips_train/26n5ePOXc5I/clip_3.mp4"

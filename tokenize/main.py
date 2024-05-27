@@ -55,7 +55,10 @@ data_dict = {
     },
     'internvid-kf-v1': {
         'path': '/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/pack/kf',
-    }
+    },
+    'merlin-s-how2link-debug': {
+        'path': '/data/video_pack/debug/data/5_27',
+    },
     # 'momentor-un-v1': {
     #     'path': '/mnt/shared-storage/tenant/hypertext/kanelin/hd3m/',
     # },
@@ -150,7 +153,7 @@ def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokeni
             wds.decode("pilrgb"),
             wds.to_dict("jpg;png;jpeg", "txt;json", handler=wds.warn_and_continue),
         ))
-
+        import ipdb; ipdb.set_trace()
         for file_idx, sample in enumerate(dataset):
             cached_key = f"{str(tar_idx)}-{str(file_idx)}"
             if special_count(conversate(sample['json']['prompt'], sample['json']['txt'], sample_type)[0]['value'], sample_type) != len(sample['json']['image_name_list']):
@@ -194,7 +197,7 @@ def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokeni
     print(f"[{datetime.datetime.now()}] complete to write samples to shard {shard_name} tar file {tar_name}, nsamples: {valid_cnt}, merged nsamples: {merged_samples_cnt}")
 
 def job(dataset_path, save_path, sample_type, num_jobs=64, start=0, end=1, shard_size=3):
-    # import ipdb; ipdb.set_trace()
+
     assert len(sample_type) > 0, "sample_type should be specified!"
     start_time = time.time()
     all_files = [os.path.join(dataset_path, x) for x in os.listdir(dataset_path) if x.endswith('.tar')]
@@ -217,24 +220,24 @@ def job(dataset_path, save_path, sample_type, num_jobs=64, start=0, end=1, shard
     
     for idx, x in enumerate(range(0, truncated_length, num_jobs * shard_size)):
         per_job_files = all_files[x: x+num_jobs * shard_size]
-        # for i in range(0, len(per_job_files), shard_size):
-        #     tokenize_and_merge_tarfiles(
-        #         save_path,
-        #         f"{start}-{end}", 
-        #         f"shard_{idx}-{i}-{i+shard_size}",
-        #         per_job_files[i:i+shard_size],
-        #         tokenizer,
-        #         sample_type
-        #     )
+        for i in range(0, len(per_job_files), shard_size):
+            tokenize_and_merge_tarfiles(
+                save_path,
+                f"{start}-{end}", 
+                f"shard_{idx}-{i}-{i+shard_size}",
+                per_job_files[i:i+shard_size],
+                tokenizer,
+                sample_type
+            )
 
-        Parallel(n_jobs=num_jobs)(delayed(tokenize_and_merge_tarfiles)(
-            save_path,
-            f"{start}-{end}",
-            f"shard_{idx}-{i}-{i+shard_size}",
-            per_job_files[i:i+shard_size], 
-            tokenizer,
-            sample_type
-        ) for i in range(0, len(per_job_files), shard_size))
+        # Parallel(n_jobs=num_jobs)(delayed(tokenize_and_merge_tarfiles)(
+        #     save_path,
+        #     f"{start}-{end}",
+        #     f"shard_{idx}-{i}-{i+shard_size}",
+        #     per_job_files[i:i+shard_size], 
+        #     tokenizer,
+        #     sample_type
+        # ) for i in range(0, len(per_job_files), shard_size))
 
     end_time = time.time()
     print(f"The precessing procedure for {len(all_files)} files ran for {(end_time - start_time)} seconds")

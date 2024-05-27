@@ -4,10 +4,35 @@ import numpy as np
 from PIL import Image
 import sys 
 sys.path.append("/data/")
-from video_pack.tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames
+from video_pack.tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames, load_image
 import subprocess
 import ffmpeg
 
+def Merlin_S_sampler(file_idx, image_paths, args=None):
+    image_name_list = []
+    image_dict_list = []
+
+    for index, path in enumerate(image_paths):
+        image_path = path['image_name']
+        # import ipdb; ipdb.set_trace()
+        if image_path.startswith("Black background"):
+            size = [int(i.replace(" ","")) for i in image_path.split(":")[-1].split(", ")]
+            w = size[0]
+            h = size[1]
+            img = np.zeros((h,w,3), np.uint8)
+        else:
+            if "data//" in path['image_name']:
+                image = path['image_name'].replace("data//", "data/")
+            else:
+                image = path['image_name']
+            img = load_image(image)
+        image_name_list.append(f"{file_idx:09d}-{index}")
+        image_dict_list.append(dict(
+            __key__=f"{file_idx:09d}-{index}",
+            jpg=img,
+        ))
+
+    return image_name_list, image_dict_list
 
 def Video_Reader(file_idx, video_path, args=None):
     # 直接给出视频
@@ -150,3 +175,5 @@ def debug():
     file_idx = 0
     video_path = "/data/webvid/debug/test.mp4"
     KF_sampler(file_idx, video_path, args=args)
+
+

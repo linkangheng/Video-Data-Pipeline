@@ -41,8 +41,8 @@ from joblib import Parallel, delayed
 # from ftlangdetect import detect
 # import cld3
 from samplers import *
-from tools import extract_frames, get_cache_video
-from samplers import Un_sampler, KF_sampler
+from tools import extract_frames, get_cache_video, merlin_s_qa_process
+from samplers import Un_sampler, KF_sampler, Merlin_S_sampler
 import threading
 
 
@@ -151,7 +151,20 @@ def load_sft(sft_path):
         })
     return data
 
-def process_tars(save_path, tar_name, samples,args=None):
+def load_merlin(interleave_path):
+    # This function is for merlin-s dataset
+    if not os.path.exists(interleave_path):
+        raise ValueError(f"interleave file {interleave_path} does not exist")
+    data = []
+    with open(interleave_path, 'r') as f:
+        for record in tqdm(ijson.items(f, "item"), desc="processing the merlin-s dataset..."):
+            data.append({
+                'video_path': record['image_info'],
+                'value': record['text_list']
+            })
+    return data
+
+def process_tars(save_path, tar_name, samples, args=None):
     print(f"[{datetime.datetime.now()}] start to package {len(samples)} files to tar file {tar_name}")
     for tar_idx, tar_start in enumerate(tqdm(range(0, len(samples), tar_size))):
         tar_writer = TarWriter(os.path.join(save_path, f"{tar_name}-{tar_idx}.tar"))
@@ -160,9 +173,8 @@ def process_tars(save_path, tar_name, samples,args=None):
         total = 0
 
         for file_idx, info in enumerate(tar_samples):
-            # try:
             # ipdb.set_trace()
-            assert isinstance(info['video_path'], str)
+            # assert isinstance(info['video_path'], str)
             # assert isinstance(info['value'], str)
 
             valid_count = 0
@@ -176,6 +188,8 @@ def process_tars(save_path, tar_name, samples,args=None):
                     image_name_list, image_dict_list, indices_list, frame_types = KF_sampler(file_idx, info['video_path'],args=args)
                 elif args.type.lower() == 'video-only':
                     image_name_list, image_dict_list = Video_Reader(file_idx, info['video_path'],args=args)
+                elif args.type.lower() == 'merlin-s':
+                    image_name_list, image_dict_list = Merlin_S_sampler(file_idx, info['video_path'],args=args)
                 else:
                     raise ValueError(f"sample types {args.type} is not supported")
                 # print(f"Successfully processed video samples {info['video_path']}")
@@ -188,30 +202,39 @@ def process_tars(save_path, tar_name, samples,args=None):
             # ==== Conversation Info ====
             
             if args.type.lower() == 'un':
+                # here for uniform sampling
                 human_value = "<image>"*len(image_name_list) 
+
             elif args.type.lower() == 'kf':
+                # here for keyframe sampling
                 human_value = ""
                 for timestep, frame_type in zip(indices_list, frame_types):
                     human_value += f"<{frame_type}image>#{timestep}"
+
             elif args.type.lower() == 'video-only':
+                # here for video-only packing, which is for cherry Han
                 human_value = ""
+
+            elif args.type.lower() == 'merlin-s':
+                # here for merlin-s dataset
+                questions, answers = merlin_s_qa_process(info['value'])
+                conversations = []
+                for question, answer in zip(questions, answers):
+                    # Human conversation
+                    conversations.append({
+                        'from': 'human',
+                        'value': question,
+                    })
+                    # GTP conversation
+                    conversations.append({
+                        'from': 'gpt',
+                        'value': answer,
+                    })
+            
             else:
                 raise ValueError(f"args.type {args.type} is not supported")
             
-            human = {
-                'from': 'human',
-                "value": human_value,
-            }
-            
-            gpt = {
-                'from': 'gpt',
-                "value": info['value'],
-            }
-            
-            conversations_info = {
-                "conversations":[human,gpt],
-            }
-            
+            # ==== Packing the samples ====
             if args.type.lower() == 'video-only':
                 size += tar_writer.write(
                     dict(
@@ -221,6 +244,17 @@ def process_tars(save_path, tar_name, samples,args=None):
                             video_id=image_name_list[0]
                         ),
                 ))
+
+            elif args.type.lower() == 'merlin-s':
+                size += tar_writer.write(
+                    dict(
+                        __key__=f"{file_idx:09d}",
+                        json=dict(
+                            conversations = conversations,
+                            image_name_list = image_name_list
+                        ),
+                ))
+
             else:
                 size += tar_writer.write(
                     dict(
@@ -260,6 +294,9 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     elif dataset == 'ego4d':
         data = load_ego4d()
         save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/ego4d/pack/kf"
+    elif dataset == 'merlin-s':
+        data = load_merlin(args.interleave_path)
+        save_path = f"/mnt/shared-storage/tenant/hypertext/kanelin/data/merlin-s/pack"
     else:
         try:
             data = load_sft(dataset)
@@ -367,6 +404,7 @@ if __name__ == "__main__":
     parser.add_argument("--total_frames", type=int, default=24, help="The total number of frames to extract from a video")
     parser.add_argument("--Iframes", type=int, default=8, help="The number of keyframes to extract from a video")
     parser.add_argument("--time_scale", type=int, default=1000, help="Scale of relative timestamps")
+    parser.add_argument("--interleave_path", type=str, default="", help="The path of interleave json file")
     parser.add_argument("--save_path", type=str, default="/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un", help="Path to save the tar files") 
     args = parser.parse_args()
     
