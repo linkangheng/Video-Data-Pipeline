@@ -64,7 +64,7 @@ Megatron 的视频数据预处理目前的总体思想是：
   
 4. 代码目前支持**`how2link`**, **`webvid`**, **`hd-vila`**, **`ego4d`** 等视频数据集
   
-5. 代码支持多种视频打包处理方案，包括完整视频打包(video_only), 均匀抽帧打包(un), 关键帧抽帧打包(kf)等, 方法写在samplers.py中，使用时请指定 --type 参数选择是否对视频进行抽帧以及抽帧的方案，[若需要新的视频处理可以直接添加到samplers.py](http://xn--samplers-vp1m35yg9a24hhvvq88abogwz9akqvcik65bx81ih92apib813od4h.py)，format可以参考下面的code
+5. 代码支持多种视频打包处理方案，包括完整视频打包(video_only), 均匀抽帧打包(un), 关键帧抽帧打包(kf)等, 方法写在samplers.py中，使用时请指定 --type 参数选择是否对视频进行抽帧以及抽帧的方案，若需要新的视频处理可以直接添加到samplers.py ，format可以参考下面的code
   
   ```python
   def video_processor(file_idx, images, args=None):
