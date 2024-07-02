@@ -20,6 +20,29 @@ Megatron 的视频数据预处理目前的总体思想是：
 
 只需完成megatron pipeline 的第一步
 
+# Data Format:
+
+Video - Text Pair
+数据格式：
+- 500 samples / tar
+- 多机多线程并行
+- Tar包写入格式：
+  - shard-machine_id-sample_start-sample_end-tar_id.tar
+    - 000000001.json
+    - 000000001.mp4
+  - 参数说明：
+    - machine_id：负责负责该tar包的机器id
+    - sample_start-sample_end: 处理该tar包的线程所负责的sample范围
+    - tar_id：该tar在其所负责的线程中的id
+Examples:
+- Tar 包结构
+  ![](https://imgse.com/i/pkga4ht)
+- Json 内容：
+{"caption": "a girl is talking to another girl sitting in a park", "video_id": "000000001"}
+- Webdataset key:
+  - mp4: 视频的二进制文件
+  - json: 视频信息
+
 # Usage:
 
 ## **Video Packing:**
