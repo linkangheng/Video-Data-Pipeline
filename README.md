@@ -19,6 +19,7 @@ Megatron 的视频数据预处理目前的总体思想是：
 ## Webdataset
 
 只需完成megatron pipeline 的第一步
+![image](https://github.com/linkangheng/Video-Data-Pipeline/assets/90882794/413d8dda-eb02-4952-b61e-107a9d0c8267)
 
 # Data Format:
 
