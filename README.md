@@ -22,7 +22,8 @@ Megatron 的视频数据预处理目前的总体思想是：
 
 # Data Format:
 
-Video - Text Pair
+## Step1: Video-Text Pair
+
 数据格式：
 - 500 samples / tar
 - 多机多线程并行
