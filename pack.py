@@ -194,7 +194,7 @@ def process_tars(save_path, tar_name, samples, args=None):
                     raise ValueError(f"sample types {args.type} is not supported")
                 # print(f"Successfully processed video samples {info['video_path']}")
             except Exception as e:
-                import ipdb;ipdb.set_trace()
+                # import ipdb;ipdb.set_trace()
                 print(e)
                 print(f"Error when processing video {info['video_path']}")
                 continue
@@ -217,7 +217,11 @@ def process_tars(save_path, tar_name, samples, args=None):
 
             elif args.type.lower() == 'merlin-s':
                 # here for merlin-s dataset
-                questions, answers = merlin_s_qa_process(info['value'])
+                try:
+                    questions, answers = merlin_s_qa_process(info['value'])
+                except:
+                    print(info)
+                    continue
                 conversations = []
                 for question, answer in zip(questions, answers):
                     # Human conversation
@@ -329,21 +333,21 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     print(f'total job size will be {per_job_size} == {truncated_length} / ({num_jobs})')
     
     # ============== 单线程调试 ============== 
-    for i in range(0, truncated_length, per_job_size):
-        process_tars(
-            save_path, 
-            f"shard-{machine_id}-{i}-{i+per_job_size}",
-            data[i:i+per_job_size], 
-            args=args
-        )
+    # for i in range(0, truncated_length, per_job_size):
+    #     process_tars(
+    #         save_path, 
+    #         f"shard-{machine_id}-{i}-{i+per_job_size}",
+    #         data[i:i+per_job_size], 
+    #         args=args
+    #     )
 
     #  ============== 只支持均匀抽帧 ==============
-    # Parallel(n_jobs=num_jobs)(delayed(process_tars)(
-    #     save_path, 
-    #     f"shard-{machine_id}-{i}-{i+per_job_size}",
-    #     data[i:i+per_job_size], 
-    #     args=args
-    # ) for i in range(0, truncated_length, per_job_size))
+    Parallel(n_jobs=num_jobs)(delayed(process_tars)(
+        save_path, 
+        f"shard-{machine_id}-{i}-5-{i+per_job_size}",
+        data[i:i+per_job_size], 
+        args=args
+    ) for i in range(0, truncated_length, per_job_size))
     
     #  ============== 支持ffmpeg ==============
     # with Pool(num_jobs) as pool:

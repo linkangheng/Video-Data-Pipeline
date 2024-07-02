@@ -61,7 +61,10 @@ def job(dataset_name, dataset_path, num_jobs=64):
     for _, res in enumerate(results):
         outputs.append(res)
 
-    pickle.dump(outputs, open(f"/mnt/shared-storage/tenant/hypertext/kanelin/index_data/index-v1-llama/{dataset_name}.pkl", "wb"))
+    # pickle.dump(outputs, open(f"/mnt/shared-storage/tenant/hypertext/kanelin/index_data/index-v1-llama/{dataset_name}.pkl", "wb"))
+    # /mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/interleave/anno/video_interleave/annotations/how2link/pair_check
+    pickle.dump(outputs, open(f"/mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/interleave/anno/video_interleave/annotations/how2link/pair_check/merlin-s-how2link.pkl", "wb"))
+
     print(f"{sum([x['nsamples'] for x in outputs])} pairs ({dataset_name}) in total for with {len(outputs)} tarfiles")
 
 if __name__ == "__main__":
@@ -72,15 +75,10 @@ if __name__ == "__main__":
 
     job(
         dataset_name=args.dataset_name,
-        dataset_path=f'/mnt/shared-storage/tenant/hypertext/kanelin/tokenized_data/{args.dataset_name}-tokens_imgpatch_400_tokenlen_8k/',
+        # dataset_path=f'/mnt/shared-storage/tenant/hypertext/kanelin/tokenized_data/{args.dataset_name}-tokens_imgpatch_400_tokenlen_8k/',
+        dataset_path="/mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/interleave/anno/video_interleave/annotations/how2link/tokenized",
         num_jobs=args.workers, 
     )
-    
-    # tokenizer_model = "/mnt/shared-storage/tenant/open-source/Llama-2-7b-hf/multimodal_tokenizer.model"
-    # tokenizer = Llama2mmTokenizer(tokenizer_model)
-    # print('[INFO] Start indexing...')
-    # res = index_tar('webvid-kf-v1', '/mnt/shared-storage/tenant/hypertext/kanelin/tokenized_data/webvid-kf-v1-tokens_imgpatch_400_tokenlen_8k/6000-7000/shard_1-50-55.tar', tokenizer)
-    # print(res)
     
     
     

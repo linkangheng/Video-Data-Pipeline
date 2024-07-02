@@ -355,7 +355,7 @@ def merlin_s_qa_process(input_str):
         questions.append(question)
     answer = re.split("|".join(questions), input_str)[1:]
     # process the summary info
-    questions.append("Summary this video.")
+    questions.append("Summary this video.")    
     last_answer, summary = answer[-1].split('Summary:')
     answer[-1] = last_answer
     answer.append(summary)

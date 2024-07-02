@@ -59,9 +59,12 @@ data_dict = {
     'merlin-s-how2link-debug': {
         'path': '/data/video_pack/debug/data/5_27',
     },
-    # 'momentor-un-v1': {
-    #     'path': '/mnt/shared-storage/tenant/hypertext/kanelin/hd3m/',
-    # },
+    'merlin-s-how2link': {
+        'path': '/mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/interleave/anno/video_interleave/annotations/how2link/packing/pack',
+    },
+    'momentor-un-v1': {
+        'path': '/mnt/shared-storage/tenant/hypertext/kanelin/hd3m/',
+    },
     # 'momentor-kf-v1': {
     #     'path': '/mnt/shared-storage/tenant/hypertext/kanelin/hd3m/',
     # }
@@ -161,7 +164,6 @@ def tokenize_and_merge_tarfiles(save_path, shard_name, tar_name, samples, tokeni
             wds.decode("pilrgb"),
             wds.to_dict("jpg;png;jpeg", "txt;json", handler=wds.warn_and_continue),
         ))
-        import ipdb; ipdb.set_trace()
         for file_idx, sample in enumerate(dataset):
             cached_key = f"{str(tar_idx)}-{str(file_idx)}"
             # make sure the images_list and special_token are matched
@@ -277,6 +279,7 @@ if __name__ == "__main__":
     job(
         dataset_path=data_dict[args.dataset_name]['path'],
         save_path=f'/mnt/shared-storage/tenant/hypertext/kanelin/tokenized_data/{args.dataset_name}-tokens_imgpatch_400_tokenlen_8k/',
+        # save_path = "/mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/interleave/anno/video_interleave/annotations/how2link/tokenized",
         num_jobs=args.workers,
         shard_size=args.shard_size, 
         start=args.start,
