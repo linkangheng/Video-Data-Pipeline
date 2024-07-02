@@ -19,7 +19,6 @@ Megatron 的视频数据预处理目前的总体思想是：
 ## Webdataset
 
 只需完成megatron pipeline 的第一步
-![image](https://github.com/linkangheng/Video-Data-Pipeline/assets/90882794/413d8dda-eb02-4952-b61e-107a9d0c8267)
 
 # Data Format:
 
@@ -37,7 +36,8 @@ Video - Text Pair
     - tar_id：该tar在其所负责的线程中的id
 Examples:
 - Tar 包结构
-  ![](https://imgse.com/i/pkga4ht)
+  ![image](https://github.com/linkangheng/Video-Data-Pipeline/assets/90882794/413d8dda-eb02-4952-b61e-107a9d0c8267)
+  
 - Json 内容：
 {"caption": "a girl is talking to another girl sitting in a park", "video_id": "000000001"}
 - Webdataset key:
