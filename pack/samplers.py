@@ -4,7 +4,8 @@ import numpy as np
 from PIL import Image
 import sys 
 sys.path.append("/data/")
-from video_pack.tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames, load_image
+from tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames, load_image
+from dataset_loader import get_prefix
 import subprocess
 import ffmpeg
 
@@ -14,7 +15,6 @@ def Merlin_S_sampler(file_idx, image_paths, args=None):
 
     for index, path in enumerate(image_paths):
         image_path = path['image_name']
-        # import ipdb; ipdb.set_trace()
         if image_path.startswith("Black background"):
             size = [int(i.replace(" ","")) for i in image_path.split(":")[-1].split(", ")]
             w = size[0]
@@ -34,63 +34,45 @@ def Merlin_S_sampler(file_idx, image_paths, args=None):
 
     return image_name_list, image_dict_list
 
-def Video_Reader(file_idx, video_path, args=None):
-    # 直接给出视频
+def getVideoList(file_idx, video_paths, args=None):
+
     video_name_list = []
     video_dict_list = []
     
-    if args.dataset == 'webvid':
-        video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
-    elif args.dataset == 'hd3m':
-        video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
-    elif args.dataset == 'internvid':
-        video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
-    elif args.dataset == 'how2link':
-        video_prefix = "s3://kanelin/interlink7m/"
-    elif args.dataset == 'ego4d':
-        video_prefix = ""
-    else:
-        video_prefix = ""
-        # raise NotImplementedError("process_dataset not supported")
-    video_path = os.path.join(video_prefix, video_path)
-    
-    if video_path.startswith("s3://"):
-        remote_path = video_path
-        video_path = get_cache_video(remote_path)
-    else:
-        remote_path = None
-    
-    with open(video_path, 'rb') as f:
-        video = f.read()
-    
-    if remote_path:
-        os.remove(video_path)
+    video_prefix = get_prefix(args.dataset)
 
-    video_name_list.append(f"{file_idx:09d}")
-    video_dict_list.append(dict(
-        __key__=f"{file_idx:09d}",
-        mp4=video,
-    ))
+    if not isinstance(video_paths, list):
+        video_paths = [video_paths]
+
+    for video_path in video_paths:
+        video_path = os.path.join(video_prefix, video_path)
+        
+        if video_path.startswith("s3://"):
+            remote_path = video_path
+            video_path = get_cache_video(remote_path)
+        else:
+            remote_path = None
+        
+        with open(video_path, 'rb') as f:
+            video = f.read()
+        
+        if remote_path:
+            os.remove(video_path)
+
+        video_name_list.append(f"{file_idx:09d}")
+        video_dict_list.append(dict(
+            __key__=f"{file_idx:09d}",
+            mp4=video,
+        ))
     
     return video_name_list, video_dict_list
 
-def Un_sampler(file_idx, video_path, args=None):
+def uniformSampler(file_idx, video_path, args=None):
     # 用于均匀采样13帧
     image_name_list = []
     image_dict_list = []
     
-    if args.dataset == 'webvid':
-        video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
-    elif args.dataset == 'hd3m':
-        video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
-    elif args.dataset == 'internvid':
-        video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
-    elif args.dataset == 'how2link':
-        video_prefix = "s3://kanelin/interlink7m/"
-    elif args.dataset == 'ego4d':
-        video_prefix = ""
-    else:
-        raise NotImplementedError("process_dataset not supported")
+    video_prefix = get_prefix(args.dataset)
     video_path = os.path.join(video_prefix, video_path)
     
     if video_path.startswith("s3://"):
@@ -113,21 +95,9 @@ def Un_sampler(file_idx, video_path, args=None):
     
     return image_name_list, image_dict_list
 
-def KF_sampler(file_idx, video_path, args=None):
+def keyFrameSampler(file_idx, video_path, args=None):
     #  Only supported for InternVid dataset, whose video is local; I_total_frames == P_total_frames below
-    if args.dataset == 'webvid':
-        video_prefix = "s3://vision-language-data/video-data/webvid10m/process_videos/"
-    elif args.dataset == 'hd3m':
-        video_prefix = "s3://vision-language-data/video-data/hd130m/process_videos/"
-    elif args.dataset == 'internvid':
-        video_prefix = "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/"
-    elif args.dataset == 'how2link':
-        video_prefix = "s3://kanelin/interlink7m/"
-    elif args.dataset == 'ego4d' or args == None:
-        video_prefix = ""
-    else:
-        raise NotImplementedError("process_dataset not supported")
-    
+    video_prefix = get_prefix(args.dataset)
     video_path = os.path.join(video_prefix, video_path)
     
     if video_path.startswith("s3://"):
@@ -162,6 +132,7 @@ def KF_sampler(file_idx, video_path, args=None):
         os.remove(video_path)
     
     return image_name_list, image_dict_list, indices_list, frame_types
+
 
 
 def debug():

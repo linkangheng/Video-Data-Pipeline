@@ -21,8 +21,10 @@ def get_cache_video(video_path):
     # Determine if the video exists
     if not smart_exists(video_path):
         error_message = f"Video file not found: {video_path}"
-        if smart_exists(video_path.replace("process_videos", "videos")):
-            video_path = video_path.replace("process_videos", "videos")
+        # Check if a similar video exists in the 'videos' directory
+        videos_path = video_path.replace("process_videos", "videos")
+        if smart_exists(videos_path):
+            video_path = videos_path
         else:
             raise FileNotFoundError(error_message)
     
