@@ -35,12 +35,88 @@ Megatron 的视频数据预处理目前的总体思想是：
     - machine_id：负责负责该tar包的机器id
     - sample_start-sample_end: 处理该tar包的线程所负责的sample范围
     - tar_id：该tar在其所负责的线程中的id
+- data type:
+  - 预计支持 video text pair、video interleave、video sft等数据格式的打包
+  - 目前完成 video text pair 部分的code，其他类型的数据请根据下面的 examples 进行开发
 Examples:
 - Tar 包结构
   ![image](https://github.com/linkangheng/Video-Data-Pipeline/assets/90882794/413d8dda-eb02-4952-b61e-107a9d0c8267)
   
 - Json 内容：
-{"caption": "a girl is talking to another girl sitting in a park", "video_id": "000000001"}
+```python
+  video text pair:
+  {
+      videos: [
+          video_name0,
+      ],
+      conversatsions: [
+          {
+              'from': 'human',
+              'value': '<video>'
+          },
+          {
+              'from': 'assistant',
+              'value': caption
+          },
+          
+      ]
+  }
+  video interleave:
+  {
+      videos: [
+          video_name0,
+          ...,
+          video_nameN,
+      ],
+      conversatsions: [
+          {
+              'from': 'human',
+              'value': '<video>'
+          },
+          {
+              'from': 'assistant',
+              'value': caption0
+          },
+          ...
+          {
+              'from': 'human',
+              'value': '<video>'
+          },
+          {
+              'from': 'assistant',
+              'value': captionN
+          },
+      ]
+  }
+  video sft:
+  {
+      videos: [
+          video_name0,
+          video_name1,
+          ...,
+          video_nameN,
+      ],
+      conversatsions: [
+          {
+              'from': 'human',
+              'value': '<video>question0<video>'
+          },
+          {
+              'from': 'assistant',
+              'value': answer0
+          },
+          ...
+          {
+              'from': 'human',
+              'value': '<video>questionN'
+          },
+          {
+              'from': 'assistant',
+              'value': answerN
+          },
+      ]
+  }
+```
 - Webdataset key:
   - mp4: 视频的二进制文件
   - json: 视频信息
