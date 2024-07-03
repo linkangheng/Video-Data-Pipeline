@@ -1,12 +1,5 @@
 # ------------------------------------------------------------------------------------------------
-# Copyright (c) 2023 Megvii, Inc. All rights reserved.
-#  conda activate webvid
-#  python /data/webvid/pack.py --dataset internvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/pack/kf --total_machine 16 --machine_id  
-#  python /data/webvid/pack.py --dataset webvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/webvid/pack/kf  --machine_id 
-#  python /data/webvid/pack.py --dataset hd3m --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/hdvila/pack/kf --machine_id 
-#  python /data/webvid/pack.py --dataset internvid --workers 64 --type un --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un --machine_id 
-#  sudo python /data/webvid/pack.py --dataset how2link --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/kf
-#  python /data/webvid/pack.py --dataset ego4d --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/ego4d/pack/kf --total_machine 8 --machine_id 0
+# Copyright (c) 2024 Megvii, Inc. All rights reserved.
 # ------------------------------------------------------------------------------------------------
 import os
 import argparse
