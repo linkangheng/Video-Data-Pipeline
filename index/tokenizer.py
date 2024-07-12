@@ -311,7 +311,6 @@ class SentencePieceTokenizer(AbstractTokenizer):
 
 
 class Llama2mmTokenizer(AbstractTokenizer):
-    """Step Chat Tokenizer"""
 
     def __init__(
         self, model_file, name="Llama2mmTokenizer",
