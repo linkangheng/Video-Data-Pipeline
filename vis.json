@@ -1,0 +1,116 @@
+{
+    "prompt": [
+        "<image><image><image><image><image><image><image><image><image><image><image><image><image><image><image><image>What is shown in the first second of the video?",
+        "Is there any change in the clock in the next second?",
+        "What time is shown on the clock in the third second?",
+        "Does the clock show the date in the fourth second?",
+        "Where is the clock located in the fifth second?",
+        "Is there any movement or interaction between the objects in the video?",
+        "Do you know the reason why the clock appears in different locations in the video?"
+    ],
+    "txt": [
+        "In the first second of the video, there is a black clock with black numbers and a white background. The clock is shown on the side of a building, and its size is around 94 by 28 to 478 by 328 pixels. The clock has a square shape, and there is a white border around the sign.",
+        "Yes, in the next second, there is a change in the clock. The clock still has a black background and black numbers, but now the border around the numbers is white. The clock is still on the side of a building, and its size is around 99 by 24 to 481 by 328 pixels.",
+        "The clock in the third second shows the time as 8",
+        "Yes, the clock in the fourth second shows both the time and date. It is a black and white clock with numbers and the date, and its size is around 134 by 3 to 499 by 330 pixels. The border around the sign is white.",
+        "In the fifth second, the clock is located on the side of the tower. It is a black clock with numbers showing the time. The size of the clock is around 144 by 1 to 501 by 330 pixels, and there is a white border around the sign.",
+        "No, there is no movement or interaction between the objects in the video. The video only shows the clock with different appearances and locations.",
+        "The given descriptions of the video do not provide such information."
+    ],
+    "info": {
+        "images": [
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_0.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_1.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_2.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_3.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_4.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_5.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_6.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_7.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_8.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_9.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_10.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_11.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_12.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_13.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_14.jpg",
+            "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/conversation/videochat1/frames/process_videos_000001_000050_1066682446/frame_15.jpg"
+        ],
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image><image><image><image><image><image><image><image><image><image><image><image><image><image><image><image>What is shown in the first second of the video?"
+            },
+            {
+                "from": "gpt",
+                "value": "In the first second of the video, there is a black clock with black numbers and a white background. The clock is shown on the side of a building, and its size is around 94 by 28 to 478 by 328 pixels. The clock has a square shape, and there is a white border around the sign."
+            },
+            {
+                "from": "human",
+                "value": "Is there any change in the clock in the next second?"
+            },
+            {
+                "from": "gpt",
+                "value": "Yes, in the next second, there is a change in the clock. The clock still has a black background and black numbers, but now the border around the numbers is white. The clock is still on the side of a building, and its size is around 99 by 24 to 481 by 328 pixels."
+            },
+            {
+                "from": "human",
+                "value": "What time is shown on the clock in the third second?"
+            },
+            {
+                "from": "gpt",
+                "value": "The clock in the third second shows the time as 8"
+            },
+            {
+                "from": "human",
+                "value": "Does the clock show the date in the fourth second?"
+            },
+            {
+                "from": "gpt",
+                "value": "Yes, the clock in the fourth second shows both the time and date. It is a black and white clock with numbers and the date, and its size is around 134 by 3 to 499 by 330 pixels. The border around the sign is white."
+            },
+            {
+                "from": "human",
+                "value": "Where is the clock located in the fifth second?"
+            },
+            {
+                "from": "gpt",
+                "value": "In the fifth second, the clock is located on the side of the tower. It is a black clock with numbers showing the time. The size of the clock is around 144 by 1 to 501 by 330 pixels, and there is a white border around the sign."
+            },
+            {
+                "from": "human",
+                "value": "Is there any movement or interaction between the objects in the video?"
+            },
+            {
+                "from": "gpt",
+                "value": "No, there is no movement or interaction between the objects in the video. The video only shows the clock with different appearances and locations."
+            },
+            {
+                "from": "human",
+                "value": "Do you know the reason why the clock appears in different locations in the video?"
+            },
+            {
+                "from": "gpt",
+                "value": "The given descriptions of the video do not provide such information."
+            }
+        ]
+    },
+    "image_name_list": [
+        "000000000-0",
+        "000000000-1",
+        "000000000-2",
+        "000000000-3",
+        "000000000-4",
+        "000000000-5",
+        "000000000-6",
+        "000000000-7",
+        "000000000-8",
+        "000000000-9",
+        "000000000-10",
+        "000000000-11",
+        "000000000-12",
+        "000000000-13",
+        "000000000-14",
+        "000000000-15"
+    ]
+}

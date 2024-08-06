@@ -226,8 +226,6 @@ def load_image(image_path):
     import megfile
     from io import BytesIO
     import os
-    # os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
-    os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
     
     if 's3://' in image_path:
         with megfile.smart_open(image_path, "rb") as f:

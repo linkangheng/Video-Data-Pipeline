@@ -10,9 +10,11 @@ import megfile
 data_prefix = {
     "webvid": "s3://vision-language-data/video-data/webvid10m/process_videos/",
     "hd3m": "s3://vision-language-data/video-data/hd130m/process_videos/",
-    "internvid": "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/InternVId-FLT/",
+    "internvid": "/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/raw/raw/InternVId-FLT",
     "how2link": "s3://kanelin/interlink7m/",
+    "llava_pretrain": "/mnt/shared-storage/tenant/hypertext/danielyu/data/LLaVA-Pretrain/image",
     "ego4d": "",
+    "momentor": "s3://kanelin/video_data/Momentor/video"
 }
 
 def get_prefix(dataset):
@@ -37,13 +39,12 @@ def load_webvid():
     print("Loaded webvid json")
     data = []
     for key in tqdm(range(len(meta_data['image'])),total=len(meta_data['image']),desc='Converting the Webvid format to required format...'):
-        video_path = meta_data['image'][str(key)]
+        video_path = os.path.join(get_prefix('webvid'), meta_data['image'][str(key)])
         caption = meta_data['value'][str(key)]
         data.append({
             'video_path': video_path,
             'value': caption
         })
-    
     return data
 
 def load_ego4d():
@@ -60,18 +61,20 @@ def load_ego4d():
     return data
 
 def load_hd3m():
+    os.environ['AWS_PROFILE'] = 'default'
     os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
     meta_data = json.load(open('/data/streamlit_source/raw_json/path_to_output_hd-3m3.json', 'r')) 
     print("Loaded hd3m json")
     data = []
     for i in tqdm(meta_data, total=len(meta_data), desc='Converting hd3m format to required format...'):
         data.append({
-            'video_path': i['video'],
+            'video_path': os.path.join(get_prefix('hd3m'), i['video']),
             'value': i['caption']
         })
     return data
 
 def load_how2link():
+    os.environ['AWS_PROFILE'] = 'tos'
     os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
     json_path = "/data/streamlit_source/raw_json/How2link.json"
     data = []
@@ -82,7 +85,7 @@ def load_how2link():
                 clip_path = "/".join(clip['clip_path'].split("/")[-3:]) + ".mp4"
                 caption = clip['caption']
                 data.append({
-                    'video_path': clip_path,
+                    'video_path': os.path.join(get_prefix('how2link'), clip_path),
                     'value': caption
                 })
                 
@@ -92,7 +95,7 @@ def load_internvid():
     import pandas as pd
     #  debug: /data/video_pack/debug/data/InternVid-10M-FLT-INFO-top10.jsonl
     #  real: /data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl
-    meta_data = pd.read_json('/data/video_pack/debug/data/InternVid-10M-FLT-INFO-top10.jsonl', lines=True) 
+    meta_data = pd.read_json('/data/streamlit_source/raw_json/InternVid-10M-FLT-INFO.jsonl', lines=True) 
     print("Loaded internvid json")
     data = []
     
@@ -101,7 +104,7 @@ def load_internvid():
         caption = meta_data['Caption'][idx]
         
         data.append({
-            'video_path': file_name,
+            'video_path': os.path.join(get_prefix('internvid'), file_name),
             'value': caption
         })
     
@@ -117,6 +120,16 @@ def load_sft(sft_path):
         })
     return data
 
+def load_llava(json_path="/mnt/shared-storage/tenant/hypertext/danielyu/data/LLaVA-Pretrain/blip_laion_cc_sbu_558k.json"):
+    meta_data = json.load(open(json_path))
+    data = []
+    for i in tqdm(meta_data, total=len(meta_data), desc='Converting llava format to required format...'):
+        data.append({
+            'video_path': os.path.join(data_prefix['llava_pretrain'], i['image']),
+            'value': i['conversations']
+        })
+    return data
+
 def load_merlin(interleave_path):
     # This function is for merlin-s dataset
     if not os.path.exists(interleave_path):
@@ -129,3 +142,39 @@ def load_merlin(interleave_path):
                 'value': record['text_list']
             })
     return data
+
+
+
+def find_files(root_dir, filename):
+    matched_files = []
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        if filename in filenames:
+            matched_files.append(os.path.join(dirpath, filename))
+    return matched_files
+
+# def load_videochat2(json_dir = "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/image"):
+#     os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
+#     if not os.path.exists(json_dir):
+#         raise ValueError(f"interleave file {json_dir} does not exist")
+#     data = []
+#     found_files = find_files(json_dir, 'processed.json')
+#     for json_file in tqdm(found_files, total = len(found_files)):
+#         datas = json.load(open(json_file, 'r'))
+#         for item in datas:
+#             data.append({
+#                 'video_path': item['image'],
+#                 'value': item['QA']
+#             })
+#     return data
+
+def load_videochat2(json_file = "/mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/sample_100k_multi/videochat2_full_667k.json"):
+    if not os.path.exists(json_file):
+        raise ValueError(f"interleave file {json_file} does not exist")
+    result = []
+    datas = json.load(open(json_file))
+    for data in tqdm(datas, total=len(datas)):
+        result.append({
+            'images': data['images'],
+            'conversations': data['conversations']
+        })
+    return result
