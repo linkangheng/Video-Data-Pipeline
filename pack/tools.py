@@ -1,6 +1,7 @@
 import cv2
 import os
 import shutil
+import io
 import re
 from megfile import smart_open, smart_exists, smart_sync, smart_remove, smart_glob
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -220,14 +221,12 @@ def tracking_process(local_video_path):
     # TODO track all the videos 
     pass
 
-def load_image(image_path):
+def load_image(image_path, type="pil"):
     
     from PIL import Image
     import megfile
     from io import BytesIO
     import os
-    # os.environ['OSS_ENDPOINT'] = 'http://oss.i.basemind.com'
-    os.environ['OSS_ENDPOINT'] = 'http://tos-s3-cn-shanghai.ivolces.com'
     
     if 's3://' in image_path:
         with megfile.smart_open(image_path, "rb") as f:
@@ -235,9 +234,23 @@ def load_image(image_path):
         image = Image.open(BytesIO(bytes_data), "r").convert('RGB')
     else:
         image = Image.open(image_path).convert('RGB')
-        
-    return image
+    
+    if type == "pil":
+        return image
+    elif type == "bytes":
+        return pil_to_bytes(image)
 
+def pil_to_bytes(pil_img, format=None):
+    # 如果没有指定格式，使用原图的格式
+    if format is None:
+        format = pil_img.format or 'JPEG'  # 如果原图也没有格式信息，默认使用JPEG
+    # 创建一个字节缓冲区
+    img_byte_arr = io.BytesIO()
+    # 将图像保存到字节缓冲区，保持原始格式
+    pil_img.save(img_byte_arr, format=format)
+    # 获取字节数据
+    img_byte_arr = img_byte_arr.getvalue()
+    return img_byte_arr
 
 def process_video(video_path):
     global delete_counter

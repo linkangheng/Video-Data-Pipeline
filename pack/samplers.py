@@ -6,8 +6,44 @@ import sys
 sys.path.append("/data/")
 from tools import extract_frames, get_cache_video, uniform_sample, get_video_total_frames, keyframes_sampler, combineKeyFrames, load_image
 from dataset_loader import get_prefix
+from dataset import videoItem
 import subprocess
 import ffmpeg
+
+def get_image(file_idx, image_path, args=None):
+    image_name_list = []
+    image_dict_list = []
+    img = load_image(image_path)
+    image_name_list.append(f"{file_idx:09d}")
+    image_dict_list.append(dict(
+        __key__=f"{file_idx:09d}",
+        jpg=img,
+    ))
+    return image_name_list, image_dict_list
+
+def get_images(file_idx, image_paths):
+    image_name_list = []
+    image_dict_list = []
+    for index, image_path in enumerate(image_paths):
+        img = load_image(image_path)
+        image_name_list.append(f"{file_idx:09d}-{index}")
+        image_dict_list.append(dict(
+            __key__=f"{file_idx:09d}-{index}",
+            jpg=img,
+        ))
+    return image_name_list, image_dict_list
+
+def get_unicontrol_images(file_idx, source, target):
+    image_name_list = []
+    image_dict_list = []
+    for index, image_path in enumerate([source, target]):
+        img = load_image(image_path, type="bytes")
+        image_name_list.append(f"{file_idx:09d}-{index}")
+        image_dict_list.append(dict(
+            __key__=f"{file_idx:09d}-{index}",
+            jpg=img,
+        ))
+    return image_name_list, image_dict_list
 
 def Merlin_S_sampler(file_idx, image_paths, args=None):
     image_name_list = []
@@ -38,15 +74,11 @@ def getVideoList(file_idx, video_paths, args=None):
 
     video_name_list = []
     video_dict_list = []
-    
-    video_prefix = get_prefix(args.dataset)
 
     if not isinstance(video_paths, list):
         video_paths = [video_paths]
 
     for video_path in video_paths:
-        video_path = os.path.join(video_prefix, video_path)
-        
         if video_path.startswith("s3://"):
             remote_path = video_path
             video_path = get_cache_video(remote_path)
@@ -71,20 +103,11 @@ def uniformSampler(file_idx, video_path, args=None):
     # 用于均匀采样13帧
     image_name_list = []
     image_dict_list = []
-    
-    video_prefix = get_prefix(args.dataset)
-    video_path = os.path.join(video_prefix, video_path)
-    
-    if video_path.startswith("s3://"):
-        remote_path = video_path
-        video_path = get_cache_video(remote_path)
-    else:
-        remote_path = None
-    
-    images = extract_frames(video_path)
-    
-    if remote_path:
-        os.remove(video_path)
+
+    # video_prefix = get_prefix(args.dataset)
+    # video_path = os.path.join(video_prefix, video_path)
+    video = videoItem(video_path, 'oss')    
+    images = video.read_video(num_segments=16)
 
     for index, img in enumerate(images):
         image_name_list.append(f"{file_idx:09d}-{index}")
@@ -133,7 +156,10 @@ def keyFrameSampler(file_idx, video_path, args=None):
     
     return image_name_list, image_dict_list, indices_list, frame_types
 
-
+def Momentor(file_idx, video_path, args=None):
+    video_prefix = get_prefix(args.dataset)
+    
+    pass
 
 def debug():
     class args:
