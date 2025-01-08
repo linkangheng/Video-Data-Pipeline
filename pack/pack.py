@@ -1,6 +1,7 @@
 # ------------------------------------------------------------------------------------------------
 # Copyright (c) 2023 Megvii, Inc. All rights reserved.
 #  conda activate webvid
+#  python pack.py --dataset unicontrol --workers 64 --type unicontrol --save_path /mnt/jfs-test/data/unicontrol/tars/aesthetics_plus_all_group_bbox_all --total_machine 16 --machine_id 0
 #  python pack.py --dataset internvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/pack/kf --total_machine 16 --machine_id  
 #  python pack.py --dataset webvid --workers 64 --type video-only --save_path /data/video_pack/debug/data/7_10  --machine_id 0 --total_machine 8
 #  python pack.py --dataset hd3m --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/hdvila/pack/kf --machine_id 
@@ -91,11 +92,12 @@ def process_tars(save_path, tar_name, samples, args=None):
                     image_name_list, image_dict_list = get_image(file_idx, info['video_path'],args=args)
                 elif args.type.lower() == 'merlin-un':
                     image_name_list, image_dict_list = get_images(file_idx, info['images'])
+                elif args.type.lower() == 'unicontrol':
+                    image_name_list, image_dict_list = get_unicontrol_images(file_idx, info['source'], info['target'])
                 else:
                     raise ValueError(f"sample types {args.type} is not supported")
-            
             except Exception as e:
-                print(f"Error when processing video {info['video_path']}")
+                print(f"Error when processing video {info}") 
                 continue
     
             # ==== Conversation Process ====
@@ -158,8 +160,6 @@ def process_tars(save_path, tar_name, samples, args=None):
                         'value': answer,
                     })
 
-            else:
-                raise ValueError(f"args.type {args.type} is not supported")
             
             # ==== Packing the samples ====
             if args.type.lower() == 'video-only':
@@ -200,6 +200,17 @@ def process_tars(save_path, tar_name, samples, args=None):
                             image = image_name_list
                         ),
                 ))
+            
+            elif args.type.lower() == 'unicontrol':
+                size += tar_writer.write(
+                    dict(
+                        __key__=f"{file_idx:09d}",
+                        json=dict(
+                            source = image_name_list[0],
+                            target = image_name_list[1],
+                            prompt = info['value']
+                        ),
+                ))
 
             elif args.type.lower() == 'merlin-un':
                 size += tar_writer.write(
@@ -220,7 +231,7 @@ def process_tars(save_path, tar_name, samples, args=None):
                             image_name_list=image_name_list
                         ),
                 ))
-            
+
             for image_dict in image_dict_list:
                 size += tar_writer.write(image_dict)
             total += 1
@@ -231,6 +242,8 @@ def process_tars(save_path, tar_name, samples, args=None):
 
 def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
     print(args)
+    
+    # prepare for meta dataset
     if dataset == 'webvid':
         data = load_webvid()
     elif dataset == 'hd3m':
@@ -247,6 +260,8 @@ def job(dataset, num_jobs=64, machine_id=0, total_machine=1,args=None):
         data = load_merlin(args.interleave_path)
     elif dataset.lower() == 'videochat2':
         data = load_videochat2()
+    elif dataset.lower() == 'unicontrol':
+        data = load_unicontrol(subset=args.subset)
     else:
         try:
             data = load_sft(dataset)
@@ -312,18 +327,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--machine_id", type=int, default=0)
     parser.add_argument("--total_machine", type=int, default=8)
-    parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid, how2link, ego4d, llava_pretrain etc.")
+    parser.add_argument("--dataset", type=str, default="internvid",help="webvid, hd3m, internvid, how2link, ego4d, llava_pretrain, unicontrol etc.")
     parser.add_argument("--workers", type=int, default=64) # 64
-    parser.add_argument("--type", type=str, default="video-only",help="un, kf, video-only, image; un for Uniform sampling, kf for I&P sampling")
+    parser.add_argument("--type", type=str, default="video-only",help="un, kf, video-only, image, unicontrol; un for Uniform sampling, kf for I&P sampling")
     parser.add_argument("--total_frames", type=int, default=24, help="The total number of frames to extract from a video")
     parser.add_argument("--Iframes", type=int, default=8, help="The number of keyframes to extract from a video")
     parser.add_argument("--time_scale", type=int, default=1000, help="Scale of relative timestamps")
     parser.add_argument("--interleave_path", type=str, default="", help="The path of interleave json file")
     parser.add_argument("--save_path", type=str, default="/mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un", help="Path to save the tar files") 
+    parser.add_argument("--subset", type=str, default="aesthetics_plus_all_group_bbox_all", help="The subset of the dataset")
     args = parser.parse_args()
     
     job(dataset=args.dataset, num_jobs=args.workers, machine_id=args.machine_id, total_machine=args.total_machine,args=args)
-
-
-    
-

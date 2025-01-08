@@ -33,6 +33,18 @@ def get_images(file_idx, image_paths):
         ))
     return image_name_list, image_dict_list
 
+def get_unicontrol_images(file_idx, source, target):
+    image_name_list = []
+    image_dict_list = []
+    for index, image_path in enumerate([source, target]):
+        img = load_image(image_path, type="bytes")
+        image_name_list.append(f"{file_idx:09d}-{index}")
+        image_dict_list.append(dict(
+            __key__=f"{file_idx:09d}-{index}",
+            jpg=img,
+        ))
+    return image_name_list, image_dict_list
+
 def Merlin_S_sampler(file_idx, image_paths, args=None):
     image_name_list = []
     image_dict_list = []
@@ -105,8 +117,6 @@ def uniformSampler(file_idx, video_path, args=None):
         ))
     
     return image_name_list, image_dict_list
-
-
 
 def keyFrameSampler(file_idx, video_path, args=None):
     #  Only supported for InternVid dataset, whose video is local; I_total_frames == P_total_frames below
