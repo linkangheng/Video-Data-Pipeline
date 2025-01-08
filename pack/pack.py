@@ -1,16 +1,3 @@
-# ------------------------------------------------------------------------------------------------
-# Copyright (c) 2023 Megvii, Inc. All rights reserved.
-#  conda activate webvid
-#  python pack.py --dataset unicontrol --workers 64 --type unicontrol --save_path /mnt/jfs-test/data/unicontrol/tars/aesthetics_plus_all_group_bbox_all --total_machine 16 --machine_id 0
-#  python pack.py --dataset internvid --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/pack/kf --total_machine 16 --machine_id  
-#  python pack.py --dataset webvid --workers 64 --type video-only --save_path /data/video_pack/debug/data/7_10  --machine_id 0 --total_machine 8
-#  python pack.py --dataset hd3m --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/hdvila/pack/kf --machine_id 
-#  python pack.py --dataset internvid --workers 64 --type un --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/internvid/un --machine_id 
-#  python pack.py --dataset how2link --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/how2link/kf
-#  python pack.py --dataset ego4d --workers 64 --type kf --save_path /mnt/shared-storage/tenant/hypertext/kanelin/data/ego4d/pack/kf --total_machine 8 --machine_id 0
-#  python pack.py --machine_id 0 --total_machine 8 --dataset  videochat2 --workers 64 --type image --save_path /mnt/shared-storage/tenant/hypertext/danielyu/data/VideoChat2/packed_tar
-#  cd /data/video_pack/pack && conda activate webvid && python pack.py --dataset videochat2 --workers 64 --type merlin-un --save_path /mnt/shared-storage/tenant/hypertext/kanelin/pack/videochat2_full  --total_machine 8 --machine_id 
-# ------------------------------------------------------------------------------------------------
 import os
 import argparse
 import datetime
